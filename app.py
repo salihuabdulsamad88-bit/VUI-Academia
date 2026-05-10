@@ -80,9 +80,13 @@ login_manager = LoginManager()
 login_manager.login_view = 'login'
 login_manager.init_app(app)
 
-# Ensure database tables are created automatically on startup (required for cloud/production)
-with app.app_context():
-    db.create_all()
+# Ensure database tables are created automatically on startup
+try:
+    with app.app_context():
+        db.create_all()
+        print("Database tables verified/created.")
+except Exception as e:
+    print(f"Database initialization warning (will retry on request): {e}")
 
 @login_manager.user_loader
 def load_user(user_id):
