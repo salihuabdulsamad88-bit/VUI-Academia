@@ -11,38 +11,41 @@ import json
 import PyPDF2
 import zipfile
 import shutil
-import google.generativeai as genai
 from dotenv import load_dotenv
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
 
 load_dotenv() # Load variables from .env if it exists
-
 # Cloudinary Configuration
-cloudinary.config(
-  cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'),
-  api_key = os.environ.get('CLOUDINARY_API_KEY'),
-  api_secret = os.environ.get('CLOUDINARY_API_SECRET'),
-  secure = True
-)
+if os.environ.get('CLOUDINARY_API_KEY'):
+    import cloudinary
+    import cloudinary.uploader
+    import cloudinary.api
+    cloudinary.config(
+      cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'),
+      api_key = os.environ.get('CLOUDINARY_API_KEY'),
+      api_secret = os.environ.get('CLOUDINARY_API_SECRET'),
+      secure = True
+    )
 
 # Configure Gemini
-genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
+if os.environ.get('GEMINI_API_KEY'):
+    import google.generativeai as genai
+    genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
+    
+    # Safety settings to prevent blocking academic content
+    safety_settings = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    ]
 
-# Safety settings to prevent blocking academic content
-safety_settings = [
-    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-]
-
-model = genai.GenerativeModel(
-    model_name='gemini-1.5-flash',
-    safety_settings=safety_settings,
-    generation_config={"response_mime_type": "application/json"}
-)
+    model = genai.GenerativeModel(
+        model_name='gemini-1.5-flash',
+        safety_settings=safety_settings,
+        generation_config={"response_mime_type": "application/json"}
+    )
+else:
+    model = None
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'vui_academia_super_secret_key_2026')
@@ -50,10 +53,17 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'vui_academia_super_secr
 # Handle database URL for production (PostgreSQL) vs development (SQLite)
 database_url = os.environ.get('DATABASE_URL')
 if database_url:
-    # Render and Heroku provide urls starting with postgres://
-    # but SQLAlchemy requires postgresql://
+    # Ensure URL starts with postgresql://
     if database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    
+    # Force SSL for Supabase if not specified
+    if "sslmode" not in database_url:
+        if "?" in database_url:
+            database_url += "&sslmode=require"
+        else:
+            database_url += "?sslmode=require"
+            
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///vui_academia.db'
