@@ -712,20 +712,29 @@ def admin_email_all():
         flash('Email is not configured. Please add MAIL_USERNAME and MAIL_PASSWORD to your .env file.', 'error')
         return redirect(url_for('admin'))
     
-    # Get all users with email addresses
-    users_with_email = User.query.filter(User.email.isnot(None), User.email != '').all()
+    # BROADCAST LOGIC: Find every single user and check their email
+    all_users = User.query.all()
+    print(f"DEBUG: Starting broadcast. Total users in database: {len(all_users)}")
     
     sent_count = 0
-    for user in users_with_email:
-        try:
-            msg = Message(subject, recipients=[user.email])
-            msg.body = f"Hello {user.full_name},\n\n{body}\n\n— VUI Academia Team"
-            mail.send(msg)
-            sent_count += 1
-        except Exception as e:
-            print(f"Failed to email {user.email}: {e}")
+    for user in all_users:
+        user_email = user.email.strip() if user.email else None
+        if user_email:
+            try:
+                print(f"DEBUG: Found email for {user.full_name}: {user_email}. Sending...")
+                msg = Message(subject, recipients=[user_email])
+                msg.body = f"Hello {user.full_name},\n\n{body}\n\n— VUI Academia Team"
+                mail.send(msg)
+                sent_count += 1
+            except Exception as e:
+                print(f"ERROR sending to {user_email}: {e}")
+        else:
+            print(f"DEBUG: Skipping {user.full_name} (No email found in database)")
     
-    flash(f'Email sent successfully to {sent_count} users!', 'success')
+    if sent_count == 0:
+        flash('Broadcast failed: No users with email addresses were found.', 'error')
+    else:
+        flash(f'Broadcast successful! Sent to {sent_count} users.', 'success')
     return redirect(url_for('admin'))
 
 @app.route('/download/<int:doc_id>')
@@ -733,14 +742,19 @@ def admin_email_all():
 def download_document(doc_id):
     doc = Document.query.get_or_404(doc_id)
     
-    # Only premium/active users and admins can download
-    if current_user.subscription_status != 'active' and not current_user.is_admin:
-        flash('Downloading documents is a Premium feature. Please subscribe to download.', 'warning')
+    # Allow active, trial, and admin users to download
+    is_premium = current_user.subscription_status in ['active', 'trial']
+    if not is_premium and not current_user.is_admin:
+        flash('Downloading documents is a Premium feature. Please subscribe or start a trial to download.', 'warning')
         return redirect(url_for('checkout'))
     
     # Handle Cloudinary URLs
     if doc.filename.startswith('http'):
-        return redirect(doc.filename)
+        # For Cloudinary, we can force download by adding fl_attachment to the URL
+        download_url = doc.filename
+        if 'cloudinary.com' in download_url and '/upload/' in download_url:
+            download_url = download_url.replace('/upload/', '/upload/fl_attachment/', 1)
+        return redirect(download_url)
         
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], doc.filename)
     if not os.path.exists(file_path):
@@ -931,19 +945,26 @@ def get_pptx_slides(doc_id):
     from io import BytesIO
     
     doc = Document.query.get_or_404(doc_id)
+    print(f"DEBUG: Attempting to extract slides for doc {doc_id} - {doc.title}")
     
     try:
         if doc.filename.startswith('http'):
             # Fetch from Cloudinary
-            response = requests.get(doc.filename)
+            print(f"DEBUG: Fetching remote file: {doc.filename}")
+            response = requests.get(doc.filename, timeout=15)
+            response.raise_for_status()
             file_stream = BytesIO(response.content)
             prs = Presentation(file_stream)
         else:
             # Local file
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], doc.filename)
+            print(f"DEBUG: Loading local file: {file_path}")
             if not os.path.exists(file_path):
-                return jsonify({'error': 'File not found'}), 404
+                print(f"ERROR: File not found at {file_path}")
+                return jsonify({'error': 'File not found on server'}), 404
             prs = Presentation(file_path)
+        
+        print(f"DEBUG: Presentation loaded successfully. Slides: {len(prs.slides)}")
         slides_data = []
         
         for slide_num, slide in enumerate(prs.slides, 1):
@@ -1025,6 +1046,33 @@ def get_pptx_slides(doc_id):
     except Exception as e:
         print(f"PPTX parse error: {e}")
         return jsonify({'error': f'Failed to parse PPTX: {str(e)}'}), 500
+
+@app.route('/api/explain-slide', methods=['POST'])
+@login_required
+@check_access
+def explain_slide():
+    """Use AI to explain the content of a specific PPTX slide."""
+    data = request.json
+    slide_text = data.get('text', '')
+    
+    if not slide_text or len(slide_text.strip()) < 10:
+        return jsonify({'explanation': "This slide appears to have very little text to explain."})
+        
+    try:
+        prompt = f"""
+        You are an expert academic tutor. Explain the following content from a lecture slide in a clear, concise, and easy-to-understand way. 
+        Focus on the most important academic concepts.
+        
+        SLIDE CONTENT:
+        {slide_text}
+        
+        Format your response with a short summary followed by 2-3 bullet points of 'Key Takeaways'.
+        """
+        response = model.generate_content(prompt)
+        return jsonify({'explanation': response.text})
+    except Exception as e:
+        print(f"AI Explain Error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/bookmark/<int:doc_id>', methods=['POST'])
 @login_required

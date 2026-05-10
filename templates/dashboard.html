@@ -93,6 +93,9 @@
                         </a>
                         {% else %}
                         <a href="{{ url_for('view_document', doc_id=doc.id) }}" class="btn-read">Read PDF</a>
+                        <a href="{{ url_for('download_document', doc_id=doc.id) }}" class="btn-read" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: white;" title="Download to Device">
+                            <i data-feather="download" style="width: 16px; height: 16px;"></i>
+                        </a>
                         <form method="POST" action="{{ url_for('generate_materials', doc_id=doc.id) }}" style="display: inline;">
                             <button type="submit" class="btn-read" style="padding: 0.6rem 1rem; font-size: 0.9rem;" title="Auto-Generate Study Materials">
                                 <i data-feather="zap" style="width: 16px; height: 16px; margin-right: 0.3rem; color: #fbbf24;"></i> Generate
@@ -116,4 +119,43 @@
         </main>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Bookmark Toggle Logic
+        document.querySelectorAll('.bookmark-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation(); // Prevent card click if any
+                
+                const docId = this.dataset.docId;
+                const icon = this.querySelector('i');
+                
+                // Add a little bounce animation
+                this.style.transform = 'scale(0.8)';
+                setTimeout(() => this.style.transform = 'scale(1)', 100);
+
+                fetch(`/bookmark/${docId}`, { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'added') {
+                        this.classList.add('active');
+                        // Optional: Show a quick toast or change icon style
+                    } else if (data.status === 'removed') {
+                        this.classList.remove('active');
+                    }
+                })
+                .catch(err => {
+                    console.error('Bookmark error:', err);
+                    alert('Could not save bookmark. Please try again.');
+                });
+            });
+        });
+    });
+</script>
 {% endblock %}

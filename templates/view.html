@@ -172,6 +172,75 @@
         border-radius: 8px;
         margin-bottom: 1rem;
     }
+    
+    /* PPTX Enhancements */
+    .pptx-controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+        background: rgba(15, 23, 42, 0.6);
+        padding: 0.75rem 1.5rem;
+        border-radius: 50px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.1);
+        width: fit-content;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .pptx-slide {
+        display: none;
+        animation: fadeIn 0.4s ease-out;
+    }
+    .pptx-slide.active {
+        display: block;
+    }
+    .ai-explain-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: linear-gradient(135deg, #a855f7, #6366f1);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 1rem;
+    }
+    .ai-explain-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .explanation-box {
+        background: rgba(168, 85, 247, 0.1);
+        border-left: 3px solid #a855f7;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-top: 2rem;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateX(-20px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    .loading-spinner {
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(168, 85, 247, 0.3);
+        border-top: 2px solid #a855f7;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
 
 </style>
 
@@ -265,136 +334,179 @@
 </div>
 
 <script>
-    const isPdf = "{{ document.filename }}".toLowerCase().endsWith('.pdf');
+    const filename = "{{ document.filename }}".toLowerCase();
+    const isPdf = filename.endsWith('.pdf') || (filename.includes('cloudinary') && filename.includes('.pdf'));
+    const isPptx = filename.endsWith('.pptx') || filename.endsWith('.ppt') || (filename.includes('cloudinary') && (filename.includes('.pptx') || filename.includes('.ppt')));
+    
     const url = "{{ url_for('serve_pdf', filename=document.filename) }}";
     const viewer = document.getElementById('pdf-viewer');
 
-    if (!isPdf) {
+    if (isPptx) {
         // PPTX Slide Viewer
         viewer.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; color: var(--text-muted);">
                 <div class="pptx-loading" style="display: flex; align-items: center; gap: 1rem;">
                     <div style="width: 32px; height: 32px; border: 3px solid rgba(6,182,212,0.3); border-top: 3px solid #06b6d4; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                    <span style="font-size: 1.1rem;">Loading slides...</span>
+                    <span style="font-size: 1.1rem;">Extracting presentation slides...</span>
                 </div>
             </div>
         `;
         
+        let allSlides = [];
+        let currentSlideIndex = 0;
+
         fetch('/api/pptx-slides/{{ document.id }}')
             .then(res => res.json())
             .then(data => {
                 if (data.error) {
-                    viewer.innerHTML = `
-                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: var(--text-muted);">
-                            <i data-feather="alert-circle" style="width: 48px; height: 48px; opacity: 0.5; margin-bottom: 1rem;"></i>
-                            <h3 style="color: white; margin-bottom: 0.5rem;">Could not load slides</h3>
-                            <p>${data.error}</p>
-                            <a href="${url}" download class="btn btn-primary" style="margin-top: 1rem; display: inline-flex; align-items: center; gap: 8px;">
-                                <i data-feather="download"></i> Download File Instead
-                            </a>
-                        </div>`;
-                    feather.replace();
+                    viewer.innerHTML = `<div style="text-align: center; padding: 3rem;"><h3>Error</h3><p>${data.error}</p></div>`;
                     return;
                 }
                 
-                let slidesHtml = `<div style="text-align: center; margin-bottom: 1.5rem; color: var(--text-muted); font-size: 0.9rem;">
-                    <span style="background: rgba(6,182,212,0.15); color: #06b6d4; padding: 0.4rem 1rem; border-radius: 20px; font-weight: 600;">
-                        📊 ${data.total_slides} Slides
-                    </span>
-                    <a href="${url}" download style="margin-left: 1rem; color: var(--accent-cyan); text-decoration: none; font-size: 0.85rem;">⬇ Download Original</a>
-                </div>`;
-                viewer.innerHTML = slidesHtml;
+                allSlides = data.slides;
+                renderSlideshow(data);
+            });
+
+        function renderSlideshow(data) {
+            viewer.innerHTML = `
+                <div class="pptx-controls">
+                    <button class="btn btn-icon" onclick="prevSlide()"><i data-feather="arrow-left"></i></button>
+                    <span id="slide-counter" style="font-weight: 700; color: #e2e8f0; min-width: 60px; text-align: center;">1 / ${data.total_slides}</span>
+                    <button class="btn btn-icon" onclick="nextSlide()"><i data-feather="arrow-right"></i></button>
+                    <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1); margin: 0 0.5rem;"></div>
+                    <button class="btn btn-icon" onclick="goFullscreen()" title="Play Presentation"><i data-feather="play"></i></button>
+                </div>
+                <div id="slides-container"></div>
+            `;
+            
+            const container = document.getElementById('slides-container');
+            
+            data.slides.forEach((slide, idx) => {
+                const slideDiv = document.createElement('div');
+                slideDiv.className = `pptx-slide ${idx === 0 ? 'active' : ''}`;
+                slideDiv.id = `slide-${idx}`;
+                slideDiv.style.cssText = `
+                    background: linear-gradient(145deg, #1e293b, #0f172a);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 16px;
+                    padding: 3rem;
+                    min-height: 450px;
+                    position: relative;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+                    color: #f1f5f9;
+                `;
                 
-                data.slides.forEach(slide => {
-                    const slideDiv = document.createElement('div');
-                    slideDiv.className = 'pptx-slide';
-                    slideDiv.style.cssText = `
-                        background: linear-gradient(145deg, #1e293b, #0f172a);
-                        border: 1px solid rgba(255,255,255,0.08);
-                        border-radius: 12px;
-                        padding: 2.5rem;
-                        margin-bottom: 1.5rem;
-                        min-height: 200px;
-                        position: relative;
-                        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-                        color: #e2e8f0;
-                        overflow-x: auto;
-                    `;
-                    
-                    slideDiv.innerHTML = `<div style="position: absolute; top: 12px; right: 16px; font-size: 0.75rem; color: #475569; font-weight: 600; background: rgba(255,255,255,0.05); padding: 2px 10px; border-radius: 10px;">Slide ${slide.number}</div>`;
-                    
-                    slide.shapes.forEach(shape => {
-                        if (shape.type === 'text') {
-                            shape.paragraphs.forEach(para => {
-                                if (para.runs.length === 0 || para.runs.every(r => !r.text || !r.text.trim())) {
-                                    const spacer = document.createElement('div');
-                                    spacer.style.height = '0.5em';
-                                    slideDiv.appendChild(spacer);
-                                    return;
-                                }
-                                
-                                const paraDiv = document.createElement('div');
-                                paraDiv.style.cssText = `text-align: ${para.alignment}; margin-bottom: 0.4rem; line-height: 1.6; padding-left: ${para.level * 1.5}rem;`;
-                                
-                                if (para.level > 0) {
-                                    const bullet = document.createElement('span');
-                                    bullet.style.cssText = 'color: #06b6d4; margin-right: 8px;';
-                                    bullet.textContent = '•';
-                                    paraDiv.appendChild(bullet);
-                                }
-                                
-                                let isTitle = para.runs.some(r => r.size >= 24 || r.bold);
-                                
-                                para.runs.forEach(run => {
-                                    if (!run.text) return;
-                                    const span = document.createElement('span');
-                                    let fontSize = run.size ? Math.min(Math.max(run.size * 0.7, 12), 32) : 16;
-                                    
-                                    span.style.fontSize = fontSize + 'px';
-                                    if (run.bold) span.style.fontWeight = '700';
-                                    if (run.italic) span.style.fontStyle = 'italic';
-                                    
-                                    if (run.color) {
-                                        span.style.color = '#' + run.color;
-                                    } else if (isTitle) {
-                                        span.style.color = '#06b6d4';
-                                    }
-                                    
-                                    span.textContent = run.text;
-                                    paraDiv.appendChild(span);
-                                });
-                                slideDiv.appendChild(paraDiv);
-                            });
-                        } else if (shape.type === 'table') {
-                            const table = document.createElement('table');
-                            table.style.cssText = 'width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem;';
+                // Content extraction for AI
+                let slideText = "";
+                
+                slide.shapes.forEach(shape => {
+                    if (shape.type === 'text') {
+                        shape.paragraphs.forEach(para => {
+                            const paraDiv = document.createElement('div');
+                            paraDiv.style.cssText = `text-align: ${para.alignment}; margin-bottom: 0.8rem; line-height: 1.6; padding-left: ${para.level * 2}rem;`;
                             
-                            shape.rows.forEach((row, ri) => {
-                                const tr = document.createElement('tr');
-                                row.forEach(cell => {
-                                    const cellEl = document.createElement(ri === 0 ? 'th' : 'td');
-                                    cellEl.style.cssText = `padding: 0.75rem; border: 1px solid rgba(255,255,255,0.1); background: ${ri === 0 ? 'rgba(6,182,212,0.15)' : 'rgba(255,255,255,0.02)'}; color: #e2e8f0;`;
-                                    cellEl.textContent = cell;
-                                    tr.appendChild(cellEl);
-                                });
-                                table.appendChild(tr);
+                            if (para.level > 0) {
+                                const bullet = document.createElement('span');
+                                bullet.style.cssText = 'color: #06b6d4; margin-right: 12px;';
+                                bullet.textContent = '•';
+                                paraDiv.appendChild(bullet);
+                            }
+                            
+                            para.runs.forEach(run => {
+                                if (!run.text) return;
+                                slideText += run.text + " ";
+                                const span = document.createElement('span');
+                                let fontSize = run.size ? Math.min(Math.max(run.size * 0.8, 14), 40) : 20;
+                                span.style.fontSize = fontSize + 'px';
+                                if (run.bold) span.style.fontWeight = '700';
+                                if (run.italic) span.style.fontStyle = 'italic';
+                                if (run.color) span.style.color = '#' + run.color;
+                                span.textContent = run.text;
+                                paraDiv.appendChild(span);
                             });
-                            slideDiv.appendChild(table);
-                        }
-                    });
-                    
-                    viewer.appendChild(slideDiv);
+                            slideDiv.appendChild(paraDiv);
+                        });
+                    }
                 });
+
+                // Add AI Explain button
+                const aiBtn = document.createElement('button');
+                aiBtn.className = 'ai-explain-btn';
+                aiBtn.innerHTML = '<i data-feather="zap" style="width:14px"></i> Gemini Explain This Slide';
+                aiBtn.onclick = () => explainCurrentSlide(slideText, slideDiv);
+                slideDiv.appendChild(aiBtn);
+                
+                container.appendChild(slideDiv);
+            });
+            
+            feather.replace();
+        }
+
+        window.nextSlide = function() {
+            if (currentSlideIndex < allSlides.length - 1) {
+                document.getElementById(`slide-${currentSlideIndex}`).classList.remove('active');
+                currentSlideIndex++;
+                document.getElementById(`slide-${currentSlideIndex}`).classList.add('active');
+                updateSlideCounter();
+            }
+        };
+
+        window.prevSlide = function() {
+            if (currentSlideIndex > 0) {
+                document.getElementById(`slide-${currentSlideIndex}`).classList.remove('active');
+                currentSlideIndex--;
+                document.getElementById(`slide-${currentSlideIndex}`).classList.add('active');
+                updateSlideCounter();
+            }
+        };
+
+        function updateSlideCounter() {
+            document.getElementById('slide-counter').textContent = `${currentSlideIndex + 1} / ${allSlides.length}`;
+        }
+
+        window.explainCurrentSlide = function(text, container) {
+            // Check for existing explanation
+            const existing = container.querySelector('.explanation-box');
+            if (existing) {
+                existing.scrollIntoView({ behavior: 'smooth' });
+                return;
+            }
+
+            const loader = document.createElement('div');
+            loader.className = 'explanation-box';
+            loader.innerHTML = '<div style="display:flex; align-items:center; gap:10px;"><div class="loading-spinner"></div> Gemini is analyzing this slide...</div>';
+            container.appendChild(loader);
+
+            fetch('/api/explain-slide', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.explanation) {
+                    loader.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:0.5rem; color:#a855f7; font-weight:700; margin-bottom:0.5rem">
+                            <i data-feather="cpu" style="width:16px"></i> GEMINI AI EXPLANATION
+                        </div>
+                        <div>${data.explanation.replace(/\n/g, '<br>')}</div>
+                    `;
+                    feather.replace();
+                } else {
+                    loader.innerHTML = "Could not generate explanation.";
+                }
             })
             .catch(err => {
-                console.error('PPTX load error:', err);
-                viewer.innerHTML = `
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: var(--text-muted);">
-                        <h3 style="color: white;">Failed to load slides</h3>
-                        <p>Network error. Please try again.</p>
-                        <a href="${url}" download class="btn btn-primary" style="margin-top: 1rem;">Download File</a>
-                    </div>`;
+                loader.innerHTML = "Error connecting to AI service.";
             });
+        };
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') window.nextSlide();
+            if (e.key === 'ArrowLeft') window.prevSlide();
+        });
+
     } else {
         // Initialize PDF.js
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';

@@ -39,3 +39,34 @@
     {% endif %}
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.bookmark-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                const docId = this.dataset.id;
+                const card = this.closest('.document-card');
+                
+                fetch(`/bookmark/${docId}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'removed') {
+                        // Smoothly hide and remove the card
+                        card.style.opacity = '0';
+                        card.style.transform = 'scale(0.9)';
+                        setTimeout(() => {
+                            card.remove();
+                            // If no bookmarks left, show the empty message
+                            if (document.querySelectorAll('.document-card').length === 0) {
+                                window.location.reload();
+                            }
+                        }, 300);
+                    }
+                })
+                .catch(err => console.error('Bookmark error:', err));
+            });
+        });
+    });
+</script>
+{% endblock %}
