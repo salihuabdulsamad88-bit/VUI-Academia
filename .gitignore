@@ -1,43 +1,47 @@
 # Python
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
-*.pyc
+*$py.class
+*.so
 .Python
-*.egg
-*.egg-info/
-dist/
 build/
-eggs/
-parts/
-var/
-sdist/
 develop-eggs/
-.installed.cfg
+dist/
+downloads/
+eggs/
+.eggs/
 lib/
 lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Virtual Environment
-venv/
-env/
-ENV/
-.venv/
-
-# Flask / App specific
-# instance/
-# uploads/*.pdf
-static/img/avatars/*.png
-static/img/avatars/*.jpg
-
-# Environment variables
+# Environments
 .env
-.env.local
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 
 # Database
-# *.db
+instance/
+*.db
 *.sqlite
 *.sqlite3
+
+# Uploads & Assets
+uploads/
+to_import/
+static/img/avatars/*
+!static/img/avatars/default.png
 
 # OS
 .DS_Store
