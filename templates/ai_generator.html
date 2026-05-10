@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .ai-container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    /* Flip Card Styles from User's Code */
+    .perspective-1000 {
+        perspective: 1000px;
+    }
+
+    .flashcard-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        transform-style: preserve-3d;
+        border-radius: 20px;
+    }
+
+    .flashcard-container {
+        width: 100%;
+        height: 320px;
+        cursor: pointer;
+    }
+
+    .flashcard-container.is-flipped .flashcard-inner {
+        transform: rotateY(180deg);
+    }
+
+    .flashcard-front, .flashcard-back {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        border-radius: 24px;
+        padding: 2.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 15px 45px rgba(0,0,0,0.4);
+        border: 1px solid rgba(255,255,255,0.05);
+        backdrop-filter: blur(15px);
+    }
+ 
+    .flashcard-front {
+        background: rgba(15, 23, 42, 0.85);
+        color: white;
+        border-bottom: 4px solid var(--accent-cyan);
+    }
+ 
+    .flashcard-back {
+        background: rgba(30, 41, 59, 0.95);
+        color: var(--accent-cyan);
+        transform: rotateY(180deg);
+        overflow-y: auto;
+        border-bottom: 4px solid var(--accent-blue);
+    }
+
+    .badge-category {
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-family: monospace;
+        color: #9ca3af;
+    }
+
+    .badge-difficulty {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        font-size: 10px;
+        text-transform: uppercase;
+        font-weight: bold;
+        padding: 2px 8px;
+        border-radius: 4px;
+    }
+
+    .difficulty-easy { background: #dcfce7; color: #15803d; }
+    .difficulty-medium { background: #fef9c3; color: #a16207; }
+    .difficulty-hard { background: #fee2e2; color: #b91c1c; }
+
+    .reveal-text {
+        margin-top: 2rem;
+        font-size: 12px;
+        color: #9ca3af;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .flashcard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-top: 3rem;
+    }
+</style>
+
+<div class="ai-container fade-in">
+    <div style="text-align: center; margin-bottom: 4rem;">
+        <h2 style="font-size: 3rem; margin-bottom: 1rem; background: linear-gradient(to right, var(--accent-cyan), var(--accent-blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">AI Study Expert</h2>
+        <p style="color: var(--text-muted); font-size: 1.1rem;">Powered by your custom Gemini Flash engine</p>
+    </div>
+
+    <div class="glass-panel" style="max-width: 600px; margin: 0 auto; padding: 2rem; border-color: var(--accent-cyan);">
+        <form id="ai-form" method="POST">
+            <div class="form-group">
+                <label class="form-label">Select Subject</label>
+                <select name="subject" class="form-control" required style="appearance: none;">
+                    <option value="Anatomy">Anatomy</option>
+                    <option value="Biochemistry">Biochemistry</option>
+                    <option value="Physiology">Physiology</option>
+                    <option value="Medicine">Medicine</option>
+                    <option value="Surgery">Surgery</option>
+                    <option value="Nursing">Nursing</option>
+                    <option value="Pharmacy">Pharmacy</option>
+                    <option value="Physiotherapy">Physiotherapy</option>
+                    <option value="Public Health">Public Health</option>
+                    <option value="Physics">Physics</option>
+                    <option value="Mathematics">Mathematics</option>
+                    <option value="Chemistry">Chemistry</option>
+                    <option value="Biology">Biology</option>
+                    <option value="Computer Science">Computer Science</option>
+                    <option value="Software Engineering">Software Engineering</option>
+                    <option value="Accounting">Accounting</option>
+                    <option value="Economics">Economics</option>
+                    <option value="Law">Law</option>
+                    <option value="General Studies">General Studies</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Specific Topic</label>
+                <input type="text" name="topic" class="form-control" placeholder="e.g. Mitosis, Contract Law, OS Scheduling" required>
+            </div>
+            <button type="submit" id="generate-btn" class="btn btn-primary" style="width: 100%; margin-top: 1rem; padding: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <i data-feather="zap" id="btn-icon"></i> <span id="btn-text">Start AI Generation</span>
+            </button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('ai-form').addEventListener('submit', function() {
+            const btn = document.getElementById('generate-btn');
+            const icon = document.getElementById('btn-icon');
+            const text = document.getElementById('btn-text');
+            
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            btn.style.cursor = 'not-allowed';
+            text.innerText = 'Generating 25 Cards...';
+            icon.setAttribute('data-feather', 'loader');
+            icon.classList.add('spin');
+            feather.replace();
+        });
+    </script>
+
+    {% if generated_deck %}
+    <div class="flashcard-grid">
+        {% for card in generated_deck.cards %}
+        <div class="flashcard-container perspective-1000" onclick="this.classList.toggle('is-flipped')">
+            <div class="flashcard-inner">
+                <!-- Front -->
+                <div class="flashcard-front">
+                    <span class="badge-category">Study Concept</span>
+                    <span class="badge-difficulty difficulty-{{ card.back_text[1:card.back_text.find(']')] | lower if ']' in card.back_text else 'medium' }}">
+                        {{ card.back_text[1:card.back_text.find(']')] if ']' in card.back_text else 'MEDIUM' }}
+                    </span>
+                    <h3 style="font-size: 1.25rem; line-height: 1.4;">{{ card.front_text }}</h3>
+                    <div class="reveal-text">
+                        <i data-feather="rotate-ccw" style="width: 14px;"></i> Click to reveal answer
+                    </div>
+                </div>
+
+                <!-- Back -->
+                <div class="flashcard-back">
+                    <span class="badge-category" style="color: var(--accent-blue);">Expert Answer</span>
+                    <p style="font-size: 1.1rem; line-height: 1.6;">
+                        {{ card.back_text[card.back_text.find(']')+2:] if ']' in card.back_text else card.back_text }}
+                    </p>
+                    <div class="reveal-text" style="color: var(--accent-blue);">
+                        <i data-feather="rotate-ccw" style="width: 14px;"></i> Click to see question
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        feather.replace();
+    });
+</script>
+{% endblock %}

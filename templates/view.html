@@ -1,0 +1,643 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .pdf-container {
+        display: flex;
+        gap: 1.5rem;
+        height: 80vh;
+    }
+    .pdf-viewer-area {
+        flex: 3;
+        background: #e2e8f0;
+        border-radius: var(--radius-lg);
+        overflow-y: auto;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 1rem;
+    }
+    .pdf-page-container {
+        position: relative;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .textLayer {
+        position: absolute;
+        left: 0;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        overflow: hidden;
+        opacity: 0.2; /* Make it slightly visible for debugging, usually 0.2 but should be transparent for real use. Wait, pdf.js textLayer is transparent by default but its text is selectable. Let's keep it transparent but selectable */
+        line-height: 1.0;
+    }
+    .textLayer > span {
+        color: transparent;
+        position: absolute;
+        white-space: pre;
+        cursor: text;
+        transform-origin: 0% 0%;
+    }
+    ::selection {
+        background: rgba(255, 255, 0, 0.5);
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .highlights-sidebar {
+        flex: 1;
+        background: var(--bg-card);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        overflow-y: auto;
+    }
+    #floating-btn {
+        position: absolute;
+        display: none;
+        background: var(--accent-cyan);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        z-index: 1000;
+        font-weight: 600;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .highlight-card {
+        background: rgba(255,255,255,0.05);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        border-left: 3px solid var(--accent-cyan);
+        position: relative;
+    }
+    .delete-hlt {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        color: #fca5a5;
+        background: none;
+        border: none;
+        cursor: pointer;
+    }
+    .pdf-viewer-area.fullscreen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 9999;
+        border-radius: 0;
+        margin: 0;
+        background: #0f172a;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .fullscreen-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.6rem 1.2rem;
+        background: linear-gradient(135deg, #06b6d4, #3b82f6);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+    .fullscreen-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(6, 182, 212, 0.4);
+    }
+    .exit-fullscreen-btn {
+        position: fixed;
+        top: 1.5rem;
+        right: 1.5rem;
+        z-index: 10001;
+        display: none;
+        padding: 0.75rem 1.5rem;
+        background: rgba(15, 23, 42, 0.8);
+        color: white;
+        border: 1px solid var(--border-glass);
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 700;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9rem;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        transition: all 0.3s ease;
+    }
+    .exit-fullscreen-btn:hover {
+        background: #ef4444;
+        border-color: #ef4444;
+        transform: scale(1.05);
+    }
+    .hidden-in-fullscreen {
+        display: none !important;
+    }
+    .pdf-star-rating {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: flex-end;
+        gap: 0.2rem;
+    }
+    .pdf-star-rating input {
+        display: none;
+    }
+    .pdf-star-rating label {
+        cursor: pointer;
+        color: #475569;
+        font-size: 1.5rem;
+    }
+    .pdf-star-rating :checked ~ label {
+        color: #fbbf24;
+    }
+    .pdf-star-rating label:hover,
+    .pdf-star-rating label:hover ~ label {
+        color: #fcd34d;
+    }
+    .pdf-review-card {
+        background: rgba(255,255,255,0.05);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+</style>
+
+<!-- PDF.js core library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+
+<button class="exit-fullscreen-btn" id="exit-fullscreen-btn" onclick="exitFullscreen()">✕ Close Fullscreen</button>
+
+<div class="container" id="view-container" style="max-width: 100%; padding: 0 5%;">
+    <div id="view-header" style="display: flex; justify-content: space-between; align-items: center; margin: 1rem 0 2rem;">
+        <div>
+            <h2 style="margin-bottom: 0.5rem;">{{ document.title }}</h2>
+            <div style="color: var(--text-muted); font-size: 0.9rem;">
+                <span class="doc-badge">{{ document.department }}</span>
+                <span style="margin-left: 1rem;">{{ document.level }} Level</span>
+            </div>
+        </div>
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            {% if current_user.subscription_status == 'active' or current_user.is_admin %}
+            <a href="{{ url_for('download_document', doc_id=document.id) }}" class="fullscreen-btn" style="text-decoration: none;"><i data-feather="download" style="width: 16px; height: 16px;"></i> Download</a>
+            {% else %}
+            <a href="{{ url_for('checkout') }}" class="fullscreen-btn" style="text-decoration: none; background: linear-gradient(135deg, #475569, #334155); opacity: 0.7;" title="Premium only">
+                <i data-feather="lock" style="width: 16px; height: 16px;"></i> Download (Premium)
+            </a>
+            {% endif %}
+            <button class="fullscreen-btn" onclick="goFullscreen()"><i data-feather="maximize" style="width: 16px; height: 16px;"></i> Fullscreen</button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline"><i data-feather="arrow-left" style="margin-right: 0.5rem; width: 18px; height: 18px;"></i> Back to Library</a>
+        </div>
+    </div>
+
+    <div class="pdf-container">
+        <div class="pdf-viewer-area" id="pdf-viewer">
+            <!-- PDF pages will be rendered here -->
+            <button id="floating-btn">Highlight Text</button>
+        </div>
+        
+        <div class="highlights-sidebar">
+            <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                <i data-feather="edit-2"></i> My Highlights
+            </h3>
+            
+            <div id="highlights-list">
+                {% for h in highlights %}
+                <div class="highlight-card" id="hlt-{{ h.id }}">
+                    <button class="delete-hlt" onclick="deleteHighlight({{ h.id }})"><i data-feather="trash-2" style="width: 14px;"></i></button>
+                    <p style="font-size: 0.9rem; line-height: 1.4; margin-bottom: 0.5rem;">"{{ h.text }}"</p>
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">Page {{ h.page_num }}</span>
+                </div>
+                {% else %}
+                <p id="no-highlights" style="color: var(--text-muted); font-size: 0.9rem; text-align: center; margin-top: 2rem;">Select text in the PDF to highlight it.</p>
+                {% endfor %}
+            </div>
+            
+            <hr style="border-color: rgba(255,255,255,0.1); margin: 2rem 0;">
+            
+            <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+                <span style="display: flex; align-items: center; gap: 0.5rem;"><i data-feather="star"></i> PDF Reviews</span>
+                <span style="font-size: 1.2rem; color: #fbbf24;">{{ avg_rating }} <i data-feather="star" style="width: 16px; fill: currentColor;"></i></span>
+            </h3>
+            
+            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem;">{{ 'Update' if user_review else 'Leave' }} a Review</h4>
+                <div class="pdf-star-rating" style="margin-bottom: 0.5rem;">
+                    <input type="radio" id="pdf_star5" name="pdf_rating" value="5" {% if user_review and user_review.rating == 5 %}checked{% endif %} /><label for="pdf_star5" title="5 stars">★</label>
+                    <input type="radio" id="pdf_star4" name="pdf_rating" value="4" {% if user_review and user_review.rating == 4 %}checked{% endif %} /><label for="pdf_star4" title="4 stars">★</label>
+                    <input type="radio" id="pdf_star3" name="pdf_rating" value="3" {% if user_review and user_review.rating == 3 %}checked{% endif %} /><label for="pdf_star3" title="3 stars">★</label>
+                    <input type="radio" id="pdf_star2" name="pdf_rating" value="2" {% if user_review and user_review.rating == 2 %}checked{% endif %} /><label for="pdf_star2" title="2 stars">★</label>
+                    <input type="radio" id="pdf_star1" name="pdf_rating" value="1" {% if user_review and user_review.rating == 1 %}checked{% endif %} /><label for="pdf_star1" title="1 star">★</label>
+                </div>
+                <textarea id="pdf-review-comment" placeholder="Optional comment..." style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 0.5rem; border-radius: 4px; margin-bottom: 0.5rem; min-height: 60px;">{% if user_review %}{{ user_review.comment or '' }}{% endif %}</textarea>
+                <button type="button" onclick="submitPdfReview()" class="btn btn-primary" style="width: 100%; padding: 0.5rem;">Submit Review</button>
+            </div>
+            
+            <div id="pdf-reviews-list">
+                {% for r in reviews %}
+                <div class="pdf-review-card">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <strong>{{ r.user.full_name }}</strong>
+                        <span style="color: #fbbf24;">{{ '★' * r.rating }}{{ '☆' * (5 - r.rating) }}</span>
+                    </div>
+                    {% if r.comment %}
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0;">{{ r.comment }}</p>
+                    {% endif %}
+                    <div style="font-size: 0.7rem; color: #64748b; margin-top: 0.5rem; text-align: right;">{{ r.created_at.strftime('%Y-%m-%d') }}</div>
+                </div>
+                {% else %}
+                <p style="color: var(--text-muted); font-size: 0.9rem; text-align: center;">No reviews yet.</p>
+                {% endfor %}
+            </div>
+    </div>
+</div>
+
+<script>
+    const isPdf = "{{ document.filename }}".toLowerCase().endsWith('.pdf');
+    const url = "{{ url_for('serve_pdf', filename=document.filename) }}";
+    const viewer = document.getElementById('pdf-viewer');
+
+    if (!isPdf) {
+        // PPTX Slide Viewer
+        viewer.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; color: var(--text-muted);">
+                <div class="pptx-loading" style="display: flex; align-items: center; gap: 1rem;">
+                    <div style="width: 32px; height: 32px; border: 3px solid rgba(6,182,212,0.3); border-top: 3px solid #06b6d4; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <span style="font-size: 1.1rem;">Loading slides...</span>
+                </div>
+            </div>
+        `;
+        
+        fetch('/api/pptx-slides/{{ document.id }}')
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    viewer.innerHTML = `
+                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: var(--text-muted);">
+                            <i data-feather="alert-circle" style="width: 48px; height: 48px; opacity: 0.5; margin-bottom: 1rem;"></i>
+                            <h3 style="color: white; margin-bottom: 0.5rem;">Could not load slides</h3>
+                            <p>${data.error}</p>
+                            <a href="${url}" download class="btn btn-primary" style="margin-top: 1rem; display: inline-flex; align-items: center; gap: 8px;">
+                                <i data-feather="download"></i> Download File Instead
+                            </a>
+                        </div>`;
+                    feather.replace();
+                    return;
+                }
+                
+                let slidesHtml = `<div style="text-align: center; margin-bottom: 1.5rem; color: var(--text-muted); font-size: 0.9rem;">
+                    <span style="background: rgba(6,182,212,0.15); color: #06b6d4; padding: 0.4rem 1rem; border-radius: 20px; font-weight: 600;">
+                        📊 ${data.total_slides} Slides
+                    </span>
+                    <a href="${url}" download style="margin-left: 1rem; color: var(--accent-cyan); text-decoration: none; font-size: 0.85rem;">⬇ Download Original</a>
+                </div>`;
+                viewer.innerHTML = slidesHtml;
+                
+                data.slides.forEach(slide => {
+                    const slideDiv = document.createElement('div');
+                    slideDiv.className = 'pptx-slide';
+                    slideDiv.style.cssText = `
+                        background: linear-gradient(145deg, #1e293b, #0f172a);
+                        border: 1px solid rgba(255,255,255,0.08);
+                        border-radius: 12px;
+                        padding: 2.5rem;
+                        margin-bottom: 1.5rem;
+                        min-height: 200px;
+                        position: relative;
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                        color: #e2e8f0;
+                        overflow-x: auto;
+                    `;
+                    
+                    slideDiv.innerHTML = `<div style="position: absolute; top: 12px; right: 16px; font-size: 0.75rem; color: #475569; font-weight: 600; background: rgba(255,255,255,0.05); padding: 2px 10px; border-radius: 10px;">Slide ${slide.number}</div>`;
+                    
+                    slide.shapes.forEach(shape => {
+                        if (shape.type === 'text') {
+                            shape.paragraphs.forEach(para => {
+                                if (para.runs.length === 0 || para.runs.every(r => !r.text || !r.text.trim())) {
+                                    const spacer = document.createElement('div');
+                                    spacer.style.height = '0.5em';
+                                    slideDiv.appendChild(spacer);
+                                    return;
+                                }
+                                
+                                const paraDiv = document.createElement('div');
+                                paraDiv.style.cssText = `text-align: ${para.alignment}; margin-bottom: 0.4rem; line-height: 1.6; padding-left: ${para.level * 1.5}rem;`;
+                                
+                                if (para.level > 0) {
+                                    const bullet = document.createElement('span');
+                                    bullet.style.cssText = 'color: #06b6d4; margin-right: 8px;';
+                                    bullet.textContent = '•';
+                                    paraDiv.appendChild(bullet);
+                                }
+                                
+                                let isTitle = para.runs.some(r => r.size >= 24 || r.bold);
+                                
+                                para.runs.forEach(run => {
+                                    if (!run.text) return;
+                                    const span = document.createElement('span');
+                                    let fontSize = run.size ? Math.min(Math.max(run.size * 0.7, 12), 32) : 16;
+                                    
+                                    span.style.fontSize = fontSize + 'px';
+                                    if (run.bold) span.style.fontWeight = '700';
+                                    if (run.italic) span.style.fontStyle = 'italic';
+                                    
+                                    if (run.color) {
+                                        span.style.color = '#' + run.color;
+                                    } else if (isTitle) {
+                                        span.style.color = '#06b6d4';
+                                    }
+                                    
+                                    span.textContent = run.text;
+                                    paraDiv.appendChild(span);
+                                });
+                                slideDiv.appendChild(paraDiv);
+                            });
+                        } else if (shape.type === 'table') {
+                            const table = document.createElement('table');
+                            table.style.cssText = 'width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem;';
+                            
+                            shape.rows.forEach((row, ri) => {
+                                const tr = document.createElement('tr');
+                                row.forEach(cell => {
+                                    const cellEl = document.createElement(ri === 0 ? 'th' : 'td');
+                                    cellEl.style.cssText = `padding: 0.75rem; border: 1px solid rgba(255,255,255,0.1); background: ${ri === 0 ? 'rgba(6,182,212,0.15)' : 'rgba(255,255,255,0.02)'}; color: #e2e8f0;`;
+                                    cellEl.textContent = cell;
+                                    tr.appendChild(cellEl);
+                                });
+                                table.appendChild(tr);
+                            });
+                            slideDiv.appendChild(table);
+                        }
+                    });
+                    
+                    viewer.appendChild(slideDiv);
+                });
+            })
+            .catch(err => {
+                console.error('PPTX load error:', err);
+                viewer.innerHTML = `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: var(--text-muted);">
+                        <h3 style="color: white;">Failed to load slides</h3>
+                        <p>Network error. Please try again.</p>
+                        <a href="${url}" download class="btn btn-primary" style="margin-top: 1rem;">Download File</a>
+                    </div>`;
+            });
+    } else {
+        // Initialize PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+        
+        const floatingBtn = document.getElementById('floating-btn');
+        
+        let selectedText = "";
+        let selectedPage = 1;
+
+        // Load PDF
+        pdfjsLib.getDocument(url).promise.then(pdf => {
+            // Render first 10 pages for performance (or all if small)
+            const numPages = Math.min(pdf.numPages, 10); 
+            for(let i = 1; i <= numPages; i++) {
+                renderPage(pdf, i);
+            }
+        });
+
+    function renderPage(pdf, pageNum) {
+        pdf.getPage(pageNum).then(page => {
+            // Calculate scale to fit the viewer width (with some padding)
+            const viewerWidth = viewer.clientWidth - 40;
+            const unscaledViewport = page.getViewport({scale: 1.0});
+            
+            let scale = viewerWidth / unscaledViewport.width;
+            
+            // Don't blow up extremely small pages
+            if (scale > 1.5) scale = 1.5;
+            
+            const viewport = page.getViewport({scale: scale});
+
+            const pageContainer = document.createElement('div');
+            pageContainer.className = 'pdf-page-container';
+            pageContainer.style.width = viewport.width + 'px';
+            pageContainer.style.height = viewport.height + 'px';
+            pageContainer.dataset.page = pageNum;
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            pageContainer.appendChild(canvas);
+            viewer.appendChild(pageContainer);
+
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            
+            page.render(renderContext).promise.then(() => {
+                // To enable text selection, we would normally use pdfjs-dist/web/pdf_viewer and TextLayerBuilder.
+                // Since we are building a minimal version without the full viewer UI, we'll rely on a basic text extraction.
+                return page.getTextContent();
+            }).then(textContent => {
+                const textLayerDiv = document.createElement('div');
+                textLayerDiv.className = 'textLayer';
+                pageContainer.appendChild(textLayerDiv);
+
+                // Assign styles to text layer items
+                pdfjsLib.renderTextLayer({
+                    textContent: textContent,
+                    container: textLayerDiv,
+                    viewport: viewport,
+                    textDivs: []
+                });
+            });
+        });
+    }
+
+    // Handle text selection
+    document.addEventListener('mouseup', (e) => {
+        const selection = window.getSelection();
+        const text = selection.toString().trim();
+        
+        if (text.length > 0 && e.target.closest('#pdf-viewer')) {
+            selectedText = text;
+            
+            // Find which page container we are in
+            const pageContainer = e.target.closest('.pdf-page-container');
+            if (pageContainer) {
+                selectedPage = pageContainer.dataset.page;
+            }
+
+            // Position the floating button
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            
+            // Adjust relative to viewer
+            const viewerRect = viewer.getBoundingClientRect();
+            
+            floatingBtn.style.top = (rect.top - viewerRect.top + viewer.scrollTop - 40) + 'px';
+            floatingBtn.style.left = (rect.left - viewerRect.left + (rect.width/2) - 50) + 'px';
+            floatingBtn.style.display = 'block';
+        } else if (e.target !== floatingBtn) {
+            floatingBtn.style.display = 'none';
+        }
+    });
+
+    // Save highlight
+    floatingBtn.addEventListener('click', () => {
+        if (!selectedText) return;
+        
+        fetch("{{ url_for('save_highlight') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                doc_id: {{ document.id }},
+                text: selectedText,
+                page_num: selectedPage
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                floatingBtn.style.display = 'none';
+                window.getSelection().removeAllRanges();
+                
+                // Add to sidebar dynamically
+                const noHlt = document.getElementById('no-highlights');
+                if (noHlt) noHlt.style.display = 'none';
+                
+                const list = document.getElementById('highlights-list');
+                const card = document.createElement('div');
+                card.className = 'highlight-card scale-up';
+                card.id = 'hlt-' + data.id;
+                card.innerHTML = `
+                    <button class="delete-hlt" onclick="deleteHighlight(${data.id})"><i data-feather="trash-2" style="width: 14px;"></i></button>
+                    <p style="font-size: 0.9rem; line-height: 1.4; margin-bottom: 0.5rem;">"${selectedText}"</p>
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">Page ${selectedPage}</span>
+                `;
+                list.prepend(card);
+                feather.replace();
+            }
+        });
+    });
+
+    // Delete highlight
+    window.deleteHighlight = function(id) {
+        fetch(`/api/highlight/${id}`, {
+            method: 'DELETE'
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'deleted') {
+                document.getElementById('hlt-' + id).remove();
+            }
+        });
+    }
+    } // END of isPdf else block
+
+    // Heartbeat to track study time (30s intervals)
+    const docId = {{ document.id }};
+    setInterval(() => {
+        console.log("Sending heartbeat for document " + docId);
+        fetch('/update-study-time', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ doc_id: docId, seconds: 30 })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                console.log("Progress updated: " + data.time_spent + "s total.");
+                if (data.completed) {
+                    console.log("Document marked as completed!");
+                }
+            }
+        })
+        .catch(err => console.error("Heartbeat failed:", err));
+    }, 30000); 
+
+    // Fullscreen toggle
+    window.goFullscreen = function() {
+        const pdfViewer = document.getElementById('pdf-viewer');
+        const exitBtn = document.getElementById('exit-fullscreen-btn');
+        const sidebar = document.querySelector('.highlights-sidebar');
+        const header = document.querySelector('.header');
+        const viewHeader = document.getElementById('view-header');
+        
+        pdfViewer.classList.add('fullscreen');
+        exitBtn.style.display = 'block';
+        if(sidebar) sidebar.classList.add('hidden-in-fullscreen');
+        if(header) header.classList.add('hidden-in-fullscreen');
+        if(viewHeader) viewHeader.classList.add('hidden-in-fullscreen');
+        
+        // Force scroll to top of viewer
+        pdfViewer.scrollTop = 0;
+    };
+
+    window.exitFullscreen = function() {
+        const pdfViewer = document.getElementById('pdf-viewer');
+        const exitBtn = document.getElementById('exit-fullscreen-btn');
+        const sidebar = document.querySelector('.highlights-sidebar');
+        const header = document.querySelector('.header');
+        const viewHeader = document.getElementById('view-header');
+        
+        pdfViewer.classList.remove('fullscreen');
+        exitBtn.style.display = 'none';
+        if(sidebar) sidebar.classList.remove('hidden-in-fullscreen');
+        if(header) header.classList.remove('hidden-in-fullscreen');
+        if(viewHeader) viewHeader.classList.remove('hidden-in-fullscreen');
+    };
+
+    // Also exit fullscreen on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') window.exitFullscreen();
+    });
+
+    // Submit PDF review
+    window.submitPdfReview = function() {
+        const ratingInput = document.querySelector('input[name="pdf_rating"]:checked');
+        if (!ratingInput) {
+            alert('Please select a star rating.');
+            return;
+        }
+        
+        const rating = ratingInput.value;
+        const comment = document.getElementById('pdf-review-comment').value;
+        
+        fetch('/api/pdf_review', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                doc_id: {{ document.id }},
+                rating: rating,
+                comment: comment
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success') {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Error submitting review');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Network error.');
+        });
+    }
+</script>
+{% endblock %}

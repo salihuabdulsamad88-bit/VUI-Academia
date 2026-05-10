@@ -1,0 +1,444 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h2>{% if current_user.is_admin or current_user.role == 'admin' %}Admin Dashboard{% else %}Lecturer Portal{% endif %}</h2>
+        {% if current_user.is_admin or current_user.role == 'admin' %}
+        <div class="glass-panel" style="padding: 0.75rem 1.5rem; display: flex; align-items: center; gap: 15px; border-color: var(--accent-cyan);">
+            <div style="background: rgba(34, 211, 238, 0.1); padding: 8px; border-radius: 50%;">
+                <i data-feather="users" style="width: 20px; height: 20px; color: var(--accent-cyan);"></i>
+            </div>
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Total Students</div>
+                <div style="font-size: 1.25rem; font-weight: 700;">{{ user_count }}</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="dashboard-layout">
+        <!-- Sidebar: Upload Form -->
+        <aside>
+            <div class="glass-panel" style="padding: 1.5rem; position: sticky; top: 100px;">
+                <h3 style="margin-bottom: 1.5rem;">Upload Documents</h3>
+                <form method="POST" action="{{ url_for('admin') }}" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label class="form-label" for="title">Title Prefix (Optional)</label>
+                        <input type="text" id="title" name="title" class="form-control" placeholder="e.g. Anatomy Notes">
+                        <small style="color: var(--text-muted); font-size: 0.7rem;">If empty, filenames will be used.</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="department">Department</label>
+                        <select id="department" name="department" class="form-control" required style="appearance: none;">
+                            <option value="Anatomy">Anatomy</option>
+                            <option value="Biochemistry">Biochemistry</option>
+                            <option value="Physiology">Physiology</option>
+                            <option value="Medicine">Medicine</option>
+                            <option value="Surgery">Surgery</option>
+                            <option value="Nursing">Nursing</option>
+                            <option value="Pharmacy">Pharmacy</option>
+                            <option value="Physiotherapy">Physiotherapy</option>
+                            <option value="Public Health">Public Health</option>
+                            <option value="Computer Science">Computer Science</option>
+                            <option value="Cyber Security">Cyber Security</option>
+                            <option value="Software Engineering">Software Engineering</option>
+                            <option value="Law">Law</option>
+                            <option value="Accounting">Accounting</option>
+                            <option value="Economics">Economics</option>
+                            <option value="General Studies">General Studies</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="level">Academic Level</label>
+                        <select id="level" name="level" class="form-control" required style="appearance: none;">
+                            <option value="100">100 Level</option>
+                            <option value="200">200 Level</option>
+                            <option value="300">300 Level</option>
+                            <option value="400">400 Level</option>
+                            <option value="500">500 Level</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="file">Select Files (Max 10)</label>
+                        <input type="file" id="file" name="files[]" accept=".pdf,.pptx,.ppt" class="form-control" multiple required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Upload Documents</button>
+                </form>
+            </div>
+        </aside>
+
+        <!-- Main Content: Management Tables -->
+        <main>
+            {% if current_user.is_admin or current_user.role == 'admin' %}
+            <!-- Student Management Section -->
+            <div class="glass-panel" style="padding: 1.5rem; margin-bottom: 2rem;">
+                <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                    <i data-feather="users" style="color: var(--accent-cyan);"></i> Student Management
+                </h3>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border-glass);">
+                                <th style="padding: 1rem; color: var(--text-muted);">Name & Matric No.</th>
+                                <th style="padding: 1rem; color: var(--text-muted);">Status</th>
+                                <th style="padding: 1rem; color: var(--text-muted);">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <td style="padding: 1rem;">{{ user.full_name }}<br><small style="color: var(--text-muted);">{{ user.matric_number }}</small></td>
+                                <td style="padding: 1rem;">
+                                    <span class="doc-badge" style="background: {% if user.subscription_status == 'active' %}rgba(16, 185, 129, 0.15){% else %}rgba(245, 158, 11, 0.15){% endif %}; color: {% if user.subscription_status == 'active' %}#10b881{% else %}#f59e0b{% endif %};">
+                                        {{ user.subscription_status.upper() }}
+                                    </span>
+                                </td>
+                                <td style="padding: 1rem;">
+                                    <div style="display: flex; gap: 8px;">
+                                        {% if user.subscription_status != 'active' %}
+                                        <form method="POST" action="{{ url_for('activate_premium', user_id=user.id) }}">
+                                            <button type="submit" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">Activate</button>
+                                        </form>
+                                        {% endif %}
+                                        
+                                        {% if user.role != 'lecturer' %}
+                                        <form method="POST" action="{{ url_for('make_lecturer', user_id=user.id) }}">
+                                            <button type="submit" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.75rem; border-color: var(--accent-blue); color: var(--accent-blue);">Make Lecturer</button>
+                                        </form>
+                                        {% endif %}
+                                        
+                                        <button onclick="openNotifyModal({{ user.id }}, '{{ user.full_name }}')" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
+                                            <i data-feather="bell" style="width: 14px; height: 14px;"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if current_user.is_admin or current_user.role in ['admin', 'lecturer'] %}
+            <!-- General Notification Section -->
+            <div class="glass-panel" style="padding: 1.5rem; margin-bottom: 2rem; border-color: var(--accent-blue);">
+                <h3 style="margin-bottom: 1.5rem;">Send Course-wide Notification</h3>
+                <form method="POST" action="{{ url_for('send_notification') }}">
+                    <input type="hidden" name="target_type" value="general">
+                    <div class="form-group">
+                        <label class="form-label">Select Course</label>
+                        <select name="course_subject" class="form-control" required style="appearance: none;">
+                            <option value="Anatomy">Anatomy</option>
+                            <option value="Biochemistry">Biochemistry</option>
+                            <option value="Physiology">Physiology</option>
+                            <option value="Medicine">Medicine</option>
+                            <option value="Surgery">Surgery</option>
+                            <option value="Nursing">Nursing</option>
+                            <option value="Pharmacy">Pharmacy</option>
+                            <option value="Physiotherapy">Physiotherapy</option>
+                            <option value="Public Health">Public Health</option>
+                            <option value="Computer Science">Computer Science</option>
+                            <option value="Cyber Security">Cyber Security</option>
+                            <option value="Software Engineering">Software Engineering</option>
+                            <option value="Law">Law</option>
+                            <option value="Accounting">Accounting</option>
+                            <option value="Economics">Economics</option>
+                            <option value="General Studies">General Studies</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Title</label>
+                        <input type="text" name="title" class="form-control" placeholder="e.g. New Lecture Materials Added" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Message</label>
+                        <textarea name="message" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Send to All Students in Course</button>
+                </form>
+            </div>
+
+            <!-- Schedule Online Lecture Section -->
+            <div class="glass-panel" style="padding: 1.5rem; margin-bottom: 2rem;">
+                <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                    <i data-feather="video" style="color: var(--accent-cyan);"></i> Schedule Online Lecture
+                </h3>
+                <form method="POST" action="{{ url_for('add_lecture') }}">
+                    <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Lecture Title</label>
+                            <input type="text" name="title" class="form-control" placeholder="e.g. Intro to Anatomy" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Subject</label>
+                            <select name="subject" class="form-control" required>
+                                <option value="Anatomy">Anatomy</option>
+                                <option value="Biochemistry">Biochemistry</option>
+                                <option value="Physics">Physics</option>
+                                <option value="Mathematics">Mathematics</option>
+                                <option value="Physiotherapy">Physiotherapy</option>
+                                <option value="Physiology">Physiology</option>
+                                <option value="Chemistry">Chemistry</option>
+                                <option value="General Studies">General Studies</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Level</label>
+                            <select name="level" class="form-control">
+                                <option value="100">100 Level</option>
+                                <option value="200">200 Level</option>
+                                <option value="300">300 Level</option>
+                                <option value="400">400 Level</option>
+                                <option value="500">500 Level</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Date & Time</label>
+                            <input type="datetime-local" name="scheduled_at" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Meeting Link (Zoom/Google Meet/YouTube)</label>
+                        <input type="url" name="meeting_link" class="form-control" placeholder="https://zoom.us/j/..." required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Short Description</label>
+                        <textarea name="description" class="form-control" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Schedule Lecture</button>
+                </form>
+            </div>
+            {% endif %}
+
+            {% if current_user.is_admin or current_user.role == 'admin' %}
+            <!-- Email All Users Section -->
+            <div class="glass-panel" style="padding: 1.5rem; margin-bottom: 2rem; border-color: #10b981;">
+                <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                    <i data-feather="mail" style="color: #10b981;"></i> Email All Users
+                </h3>
+                <form method="POST" action="{{ url_for('admin_email_all') }}">
+                    <div class="form-group">
+                        <label class="form-label">Email Subject</label>
+                        <input type="text" name="email_subject" class="form-control" placeholder="e.g. Important Update from VUI Academia" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email Body</label>
+                        <textarea name="email_body" class="form-control" rows="4" placeholder="Write your message here..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981, #059669); border: none;">
+                        <i data-feather="send" style="width: 16px; height: 16px; margin-right: 8px;"></i> Send Email to All Students
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+
+            {% if current_user.is_admin or current_user.role in ['admin', 'lecturer'] %}
+            <!-- Manage Online Lectures Section -->
+            <div class="glass-panel" style="padding: 1.5rem; margin-bottom: 2rem;">
+                <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                    <i data-feather="monitor" style="color: var(--accent-cyan);"></i> Manage Online Lectures
+                </h3>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border-glass);">
+                                <th style="padding: 1rem; color: var(--text-muted);">Title & Subject</th>
+                                <th style="padding: 1rem; color: var(--text-muted);">Schedule</th>
+                                <th style="padding: 1rem; color: var(--text-muted);">Status</th>
+                                <th style="padding: 1rem; color: var(--text-muted);">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lecture in lectures %}
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <td style="padding: 1rem;">
+                                    <div style="font-weight: 600;">{{ lecture.title }}</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-muted);">{{ lecture.subject }} ({{ lecture.level }}L)</div>
+                                </td>
+                                <td style="padding: 1rem;">
+                                    <div style="font-size: 0.85rem;">{{ lecture.scheduled_at.strftime('%b %d, %I:%M %p') }}</div>
+                                </td>
+                                <td style="padding: 1rem;">
+                                    {% if lecture.is_live %}
+                                    <span style="background: rgba(239,68,68,0.2); color: #ef4444; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">LIVE</span>
+                                    {% else %}
+                                    <span style="background: rgba(255,255,255,0.05); color: var(--text-muted); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">Scheduled</span>
+                                    {% endif %}
+                                </td>
+                                <td style="padding: 1rem; display: flex; gap: 0.5rem;">
+                                    <form method="POST" action="{{ url_for('toggle_lecture_live', lecture_id=lecture.id) }}">
+                                        <button class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                                            {{ 'End' if lecture.is_live else 'Go Live' }}
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('delete_lecture', lecture_id=lecture.id) }}" onsubmit="return confirm('Remove this lecture?')">
+                                        <button class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-color: rgba(239,68,68,0.3); color: #ef4444;">
+                                            <i data-feather="trash-2" style="width: 14px; height: 14px;"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not lectures %}
+                            <tr>
+                                <td colspan="4" style="padding: 2rem; text-align: center; color: var(--text-muted);">No lectures scheduled.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Documents Management Section -->
+            <div class="glass-panel" style="padding: 1.5rem;">
+                <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                    <i data-feather="file-text" style="color: var(--accent-blue);"></i> Manage Library
+                </h3>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border-glass);">
+                                <th style="padding: 1rem; color: var(--text-muted);">Title</th>
+                                <th style="padding: 1rem; color: var(--text-muted);">Dept/Level</th>
+                                <th style="padding: 1rem; color: var(--text-muted);">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for doc in documents %}
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <td style="padding: 1rem;">{{ doc.title }}</td>
+                                <td style="padding: 1rem;">
+                                    <span class="doc-badge">{{ doc.department }}</span>
+                                    <span style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-top: 4px;">{{ doc.level }} Level</span>
+                                </td>
+                                <td style="padding: 1rem;">
+                                    <div style="display: flex; gap: 8px;">
+                                        <button onclick="openEditModal({{ doc.id }}, '{{ doc.title }}', '{{ doc.department }}', {{ doc.level }})" class="btn btn-outline" style="padding: 0.4rem 0.8rem; border-color: var(--accent-cyan); color: var(--accent-cyan);">
+                                            <i data-feather="edit-2" style="width: 14px; height: 14px;"></i>
+                                        </button>
+                                        <form method="POST" action="{{ url_for('delete_document', doc_id=doc.id) }}" onsubmit="return confirm('Delete this file?');">
+                                            <button type="submit" class="btn btn-outline" style="padding: 0.4rem 0.8rem; border-color: #ef4444; color: #fca5a5;">
+                                                <i data-feather="trash-2" style="width: 14px; height: 14px;"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="edit-modal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+    <div class="glass-panel" style="width: 100%; max-width: 500px; padding: 2rem;">
+        <h3 style="margin-bottom: 1.5rem;">Edit Document Info</h3>
+        <form id="edit-form" method="POST">
+            <div class="form-group">
+                <label class="form-label">Title</label>
+                <input type="text" name="title" id="edit-title" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Department</label>
+                <input type="text" name="department" id="edit-department" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Level</label>
+                <select name="level" id="edit-level" class="form-control" required style="appearance: none;">
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                    <option value="300">300</option>
+                    <option value="400">400</option>
+                    <option value="500">500</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button type="button" class="btn btn-outline" style="flex: 1;" onclick="document.getElementById('edit-modal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="flex: 1;">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Individual Notification Modal -->
+<div id="notify-modal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+    <div class="glass-panel" style="width: 100%; max-width: 500px; padding: 2rem;">
+        <h3 style="margin-bottom: 1.5rem;">Notify <span id="notify-username"></span></h3>
+        <form method="POST" action="{{ url_for('send_notification') }}">
+            <input type="hidden" name="target_type" value="individual">
+            <input type="hidden" name="user_id" id="notify-user-id">
+            <div class="form-group">
+                <label class="form-label">Title</label>
+                <input type="text" name="title" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Message</label>
+                <textarea name="message" class="form-control" rows="4" required></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button type="button" class="btn btn-outline" style="flex: 1;" onclick="document.getElementById('notify-modal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="flex: 1;">Send Notification</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openNotifyModal(userId, username) {
+    document.getElementById('notify-user-id').value = userId;
+    document.getElementById('notify-username').innerText = username;
+    document.getElementById('notify-modal').style.display = 'flex';
+}
+
+function openEditModal(id, title, dept, level) {
+    document.getElementById('edit-form').action = "/admin/edit-document/" + id;
+    document.getElementById('edit-title').value = title;
+    document.getElementById('edit-department').value = dept;
+    document.getElementById('edit-level').value = level;
+    document.getElementById('edit-modal').style.display = 'flex';
+}
+</script>
+        <!-- User Management Section -->
+        <div class="glass-panel" style="padding: 2rem; margin-top: 2rem;">
+            <h2 style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; color: #fbbf24;">
+                <i data-feather="users"></i> User Management & Security
+            </h2>
+            
+            <div style="background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                <h3 style="font-size: 1rem; margin-bottom: 1rem;">Reset User Password</h3>
+                <form action="{{ url_for('admin_reset_password') }}" method="POST" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end;">
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label">Select Student</label>
+                        <select name="user_id" class="form-control" required style="background: rgba(0,0,0,0.3);">
+                            {% for user in users %}
+                                {% if not user.is_admin %}
+                                <option value="{{ user.id }}">{{ user.full_name }} ({{ user.matric_number }})</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label">New Password</label>
+                        <input type="text" name="new_password" class="form-control" placeholder="Enter new password" required style="background: rgba(0,0,0,0.3);">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="padding: 0.75rem 1.5rem;">
+                        Update Password
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}

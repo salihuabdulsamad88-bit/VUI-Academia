@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container scale-up">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h2>My Account</h2>
+    </div>
+
+    <div class="glass-panel" style="padding: 2.5rem; max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem;">
+        
+        <form method="POST" action="{{ url_for('account') }}" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border-glass); padding-bottom: 2rem;">
+                <div style="position: relative;">
+                    {% if current_user.profile_picture == 'default.png' %}
+                        <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; color: white;">
+                            {{ current_user.full_name[0] | upper }}
+                        </div>
+                    {% else %}
+                        <img src="{{ url_for('static', filename='img/avatars/' + current_user.profile_picture) }}" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-cyan);">
+                    {% endif %}
+                    <label for="profile_picture" style="position: absolute; bottom: -5px; right: -5px; background: var(--bg-dark); border-radius: 50%; padding: 5px; cursor: pointer; border: 1px solid var(--border-glass);">
+                        <i data-feather="camera" style="width: 14px; height: 14px; color: var(--accent-cyan);"></i>
+                    </label>
+                    <input type="file" id="profile_picture" name="profile_picture" accept="image/*" style="display: none;" onchange="this.form.submit()">
+                </div>
+                <div>
+                    <h3 style="font-size: 1.5rem; margin-bottom: 0.25rem;">{{ current_user.full_name }}</h3>
+                    <span class="doc-badge">{{ current_user.department or 'Admin / General' }}</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="email">Email Address</label>
+                <input type="email" id="email" name="email" class="form-control" value="{{ current_user.email or '' }}" placeholder="Enter your email">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Security Question</label>
+                <select name="security_question" class="form-control" style="appearance: none;">
+                    <option value="{{ current_user.security_question }}" selected>{{ current_user.security_question or 'Select a question' }}</option>
+                    <option value="What is your mother's maiden name?">What is your mother's maiden name?</option>
+                    <option value="What was the name of your first pet?">What was the name of your first pet?</option>
+                    <option value="What city were you born in?">What city were you born in?</option>
+                    <option value="What is your favorite book?">What is your favorite book?</option>
+                    <option value="What is your childhood nickname?">What is your childhood nickname?</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Security Answer</label>
+                <input type="text" name="security_answer" class="form-control" placeholder="Update your answer">
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Save Changes</button>
+        </form>
+
+        <div style="display: flex; gap: 2rem; background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: var(--radius-md);">
+            <div>
+                <label style="color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Study Streak</label>
+                <p style="font-size: 1.5rem; font-weight: bold; color: var(--accent-cyan); display: flex; align-items: center; gap: 0.5rem;">
+                    <i data-feather="zap"></i> {{ current_user.streak_days }} Days
+                </p>
+            </div>
+            <div style="width: 1px; background: var(--border-glass);"></div>
+            <div>
+                <label style="color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Total Quizzes</label>
+                <p style="font-size: 1.5rem; font-weight: bold; color: var(--text-main);">
+                    {{ current_user.quiz_results | length }}
+                </p>
+            </div>
+        </div>
+
+        <div>
+            <label style="color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Subscription Status</label>
+            <p style="font-size: 1.2rem; font-weight: 500; margin-top: 0.25rem; display: flex; align-items: center; gap: 0.5rem;">
+                {% if current_user.subscription_status == 'active' %}
+                    <i data-feather="check-circle" style="color: var(--accent-cyan);"></i> Premium Active
+                {% elif current_user.subscription_status == 'trial' %}
+                    <i data-feather="clock" style="color: #fbbf24;"></i> Trial Active
+                {% else %}
+                    <i data-feather="x-circle" style="color: #fca5a5;"></i> Expired
+                {% endif %}
+            </p>
+        </div>
+
+        <div>
+            <label style="color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Member Since</label>
+            <p style="font-size: 1.1rem; margin-top: 0.25rem;">{{ current_user.trial_start_date.strftime('%B %d, %Y') }}</p>
+        </div>
+        
+        {% if current_user.subscription_status != 'active' %}
+        <div style="margin-top: 1.5rem;">
+            <a href="{{ url_for('checkout') }}" class="btn btn-primary" style="width: 100%;">Upgrade to Premium</a>
+        </div>
+        {% endif %}
+        
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container" style="max-width: 800px; margin: 2rem auto;">
+    <div class="glass-panel" style="padding: 3rem;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <h1 style="margin-bottom: 1rem; color: var(--accent-cyan);">Rate VUI Academia</h1>
+            <p style="color: var(--text-muted); font-size: 1.1rem;">Your feedback helps us improve the learning experience.</p>
+            
+            <div style="display: inline-flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); padding: 1rem 2rem; border-radius: 12px; margin-top: 1.5rem; border: 1px solid rgba(255,255,255,0.1);">
+                <span style="font-size: 1.2rem; margin-right: 1rem; font-weight: 600;">Global Average:</span>
+                <span style="font-size: 2rem; color: #fbbf24; display: flex; align-items: center; gap: 0.5rem; font-weight: 800;">
+                    {{ avg_rating }} <i data-feather="star" style="width: 28px; height: 28px; fill: currentColor;"></i>
+                </span>
+            </div>
+        </div>
+
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2rem; margin-bottom: 3rem;">
+            <h3 style="margin-bottom: 1.5rem; text-align: center;">{{ 'Update Your' if user_review else 'Submit a' }} Review</h3>
+            
+            <form id="app-rating-form" onsubmit="submitAppReviewPage(event)">
+                <div class="app-star-rating" style="margin-bottom: 1.5rem;">
+                    <input type="radio" id="pg_star5" name="app_rating" value="5" {% if user_review and user_review.rating == 5 %}checked{% endif %} /><label for="pg_star5" title="5 stars">★</label>
+                    <input type="radio" id="pg_star4" name="app_rating" value="4" {% if user_review and user_review.rating == 4 %}checked{% endif %} /><label for="pg_star4" title="4 stars">★</label>
+                    <input type="radio" id="pg_star3" name="app_rating" value="3" {% if user_review and user_review.rating == 3 %}checked{% endif %} /><label for="pg_star3" title="3 stars">★</label>
+                    <input type="radio" id="pg_star2" name="app_rating" value="2" {% if user_review and user_review.rating == 2 %}checked{% endif %} /><label for="pg_star2" title="2 stars">★</label>
+                    <input type="radio" id="pg_star1" name="app_rating" value="1" {% if user_review and user_review.rating == 1 %}checked{% endif %} /><label for="pg_star1" title="1 star">★</label>
+                </div>
+                
+                <textarea id="pg-app-review-comment" placeholder="Tell us what you think..." class="form-control" style="min-height: 120px; margin-bottom: 1.5rem; font-size: 1rem; padding: 1rem;">{% if user_review %}{{ user_review.comment or '' }}{% endif %}</textarea>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem; font-size: 1.1rem; border-radius: 8px;">
+                    {{ 'Update Review' if user_review else 'Submit Review' }}
+                </button>
+            </form>
+        </div>
+
+        <div>
+            <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;"><i data-feather="message-square"></i> Student Reviews</h3>
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                {% for r in reviews %}
+                <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <strong style="font-size: 1.1rem; color: white;">{{ r.user.full_name }}</strong>
+                        <span style="color: #fbbf24; font-size: 1.1rem; letter-spacing: 2px;">{{ '★' * r.rating }}{{ '☆' * (5 - r.rating) }}</span>
+                    </div>
+                    {% if r.comment %}
+                    <p style="color: var(--text-muted); line-height: 1.6; margin-bottom: 0; font-size: 0.95rem;">{{ r.comment }}</p>
+                    {% endif %}
+                    <div style="font-size: 0.8rem; color: #64748b; margin-top: 1rem;">{{ r.created_at.strftime('%B %d, %Y') }}</div>
+                </div>
+                {% else %}
+                <div style="text-align: center; padding: 3rem; background: rgba(0,0,0,0.1); border-radius: 12px; color: var(--text-muted);">
+                    <i data-feather="star" style="width: 48px; height: 48px; opacity: 0.5; margin-bottom: 1rem;"></i>
+                    <p>No reviews yet. Be the first to leave one!</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .app-star-rating {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    .app-star-rating input {
+        display: none;
+    }
+    .app-star-rating label {
+        cursor: pointer;
+        color: #475569;
+        font-size: 3rem;
+        transition: color 0.2s ease;
+    }
+    .app-star-rating :checked ~ label {
+        color: #fbbf24;
+    }
+    .app-star-rating label:hover,
+    .app-star-rating label:hover ~ label {
+        color: #fcd34d;
+    }
+</style>
+
+<script>
+    function submitAppReviewPage(e) {
+        e.preventDefault();
+        const ratingInput = document.querySelector('input[name="app_rating"]:checked');
+        if (!ratingInput) {
+            alert('Please select a star rating first.');
+            return;
+        }
+        
+        const rating = ratingInput.value;
+        const comment = document.getElementById('pg-app-review-comment').value;
+        
+        const btn = e.target.querySelector('button[type="submit"]');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = 'Submitting...';
+        btn.disabled = true;
+
+        fetch("{{ url_for('submit_review') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rating: rating, comment: comment })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success') {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Error submitting review');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        })
+        .catch(err => {
+            console.error("Fetch error:", err);
+            alert('Network error submitting review. Please try again.');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="glass-panel" style="max-width: 800px; margin: 2rem auto; padding: 3rem;">
+        <div style="display: flex; align-items: center; gap: 2rem; margin-bottom: 3rem;">
+            <div style="position: relative;">
+                <img src="{% if current_user.profile_picture.startswith('http') %}{{ current_user.profile_picture }}{% else %}{{ url_for('static', filename='img/avatars/' + current_user.profile_picture) }}{% endif %}" 
+                     style="width: 120px; height: 120px; border-radius: 50%; border: 4px solid var(--accent-cyan); object-fit: cover;">
+                <label for="avatar-upload" style="position: absolute; bottom: 0; right: 0; background: var(--accent-cyan); padding: 8px; border-radius: 50%; cursor: pointer;">
+                    <i data-feather="camera" style="width: 18px; height: 18px; color: black;"></i>
+                </label>
+            </div>
+            <div>
+                <h2 style="margin: 0;">{{ current_user.full_name }}</h2>
+                <p style="color: var(--text-muted); margin-top: 0.5rem;">{{ current_user.role.title() }} • Member since {{ current_user.trial_start_date.strftime('%B %Y') }}</p>
+                <span class="doc-badge" style="background: {% if current_user.subscription_status == 'active' %}rgba(16, 185, 129, 0.15){% else %}rgba(245, 158, 11, 0.15){% endif %}; color: {% if current_user.subscription_status == 'active' %}#10b881{% else %}#f59e0b{% endif %};">
+                    {{ current_user.subscription_status.upper() }} Account
+                </span>
+            </div>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data">
+            <input type="file" id="avatar-upload" name="profile_picture" style="display: none;" onchange="this.form.submit()">
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" name="full_name" value="{{ current_user.full_name }}" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" name="email" value="{{ current_user.email or '' }}" class="form-control" placeholder="Add an email for notifications">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Department</label>
+                    <input type="text" name="department" value="{{ current_user.department or '' }}" class="form-control" placeholder="e.g. Nursing">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Change Password (Optional)</label>
+                    <input type="password" name="new_password" class="form-control" placeholder="Leave blank to keep current">
+                </div>
+            </div>
+            
+            <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center;">
+                <button type="submit" class="btn btn-primary" style="padding: 1rem 2rem;">Update Profile</button>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline" style="border-color: #fca5a5; color: #fca5a5; text-decoration: none; display: flex; align-items: center; gap: 8px;">
+                    <i data-feather="log-out"></i> Logout Account
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="glass-panel auth-container">
+        <h2 class="auth-title">Welcome Back</h2>
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="form-group">
+                <label class="form-label" for="matric_number">Matric Number</label>
+                <input type="text" id="matric_number" name="matric_number" class="form-control" required autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <input type="password" id="password" name="password" class="form-control" required autocomplete="current-password">
+                <div style="text-align: right; margin-top: 0.5rem;">
+                    <a href="{{ url_for('forgot_password') }}" style="font-size: 0.8rem; color: var(--accent-cyan);">Forgot Password?</a>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
+        </form>
+        <p style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.5rem;">
+            <a href="{{ url_for('forgot_password') }}" style="color: var(--text-muted); text-decoration: none; font-size: 0.85rem;">Forgot password?</a>
+            <span>Don't have an account? <a href="{{ url_for('register') }}">Register here</a></span>
+        </p>
+    </div>
+</div>
+{% endblock %}

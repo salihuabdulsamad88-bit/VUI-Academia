@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h2>My Study Timetable</h2>
+        <button class="btn btn-primary" onclick="document.getElementById('add-modal').style.display='flex'">Add Schedule</button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+        {% for day in days %}
+        <div class="glass-panel" style="padding: 1.5rem;">
+            <h3 style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.1);">{{ day }}</h3>
+            {% if entries[day] %}
+                {% for entry in entries[day] %}
+                <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: var(--radius-md); border-left: 3px solid var(--accent-blue); margin-bottom: 0.75rem; position: relative;" class="timetable-card">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; padding-right: 50px;">
+                        <span style="font-weight: 600; color: white;">{{ entry.subject }}</span>
+                        <span style="font-size: 0.75rem; color: var(--accent-cyan);">{{ entry.time }}</span>
+                    </div>
+                    {% if entry.task %}
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">{{ entry.task }}</p>
+                    {% endif %}
+                    
+                    <div style="position: absolute; top: 0.75rem; right: 0.75rem; display: flex; gap: 8px;">
+                        <button onclick="openEditModal({{ entry.id }}, '{{ entry.day }}', '{{ entry.time }}', '{{ entry.subject }}', `{{ entry.task }}`)" style="background: none; border: none; color: var(--text-muted); cursor: pointer;" title="Edit">
+                            <i data-feather="edit-2" style="width: 14px; height: 14px;"></i>
+                        </button>
+                        <form method="POST" action="{{ url_for('delete_timetable', entry_id=entry.id) }}" style="display: inline;" onsubmit="return confirm('Delete this schedule?')">
+                            <button type="submit" style="background: none; border: none; color: #fca5a5; cursor: pointer;" title="Delete">
+                                <i data-feather="trash-2" style="width: 14px; height: 14px;"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">No classes scheduled.</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Simple Modal -->
+<div id="add-modal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+    <div class="glass-panel" style="width: 100%; max-width: 500px; padding: 2rem;">
+        <h3 style="margin-bottom: 1.5rem;">Add Study Session</h3>
+        <form method="POST" action="{{ url_for('timetable') }}">
+            <div class="form-group">
+                <label class="form-label">Day</label>
+                <select name="day" class="form-control" required style="appearance: none;">
+                    {% for day in days %}
+                    <option value="{{ day }}">{{ day }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Time</label>
+                <input type="text" name="time" class="form-control" placeholder="e.g. 10:00 AM - 12:00 PM" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Subject</label>
+                <input type="text" name="subject" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Specific Task (Optional)</label>
+                <textarea name="task" class="form-control" rows="2"></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-outline" style="flex: 1;" onclick="document.getElementById('add-modal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="flex: 1;">Save Entry</button>
+            </div>
+        </form>
+    </div>
+<!-- Edit Modal -->
+<div id="edit-modal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+    <div class="glass-panel" style="width: 100%; max-width: 500px; padding: 2rem;">
+        <h3 style="margin-bottom: 1.5rem;">Edit Study Session</h3>
+        <form id="edit-form" method="POST" action="">
+            <div class="form-group">
+                <label class="form-label">Day</label>
+                <select name="day" id="edit-day" class="form-control" required style="appearance: none;">
+                    {% for day in days %}
+                    <option value="{{ day }}">{{ day }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Time</label>
+                <input type="text" name="time" id="edit-time" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Subject</label>
+                <input type="text" name="subject" id="edit-subject" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Specific Task (Optional)</label>
+                <textarea name="task" id="edit-task" class="form-control" rows="2"></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-outline" style="flex: 1;" onclick="document.getElementById('edit-modal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="flex: 1;">Update Entry</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditModal(id, day, time, subject, task) {
+        document.getElementById('edit-form').action = "/timetable/edit/" + id;
+        document.getElementById('edit-day').value = day;
+        document.getElementById('edit-time').value = time;
+        document.getElementById('edit-subject').value = subject;
+        document.getElementById('edit-task').value = task;
+        document.getElementById('edit-modal').style.display = 'flex';
+    }
+</script>
+{% endblock %}

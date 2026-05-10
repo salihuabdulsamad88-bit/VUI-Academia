@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="glass-panel" style="max-width: 600px; margin: 4rem auto; padding: 3rem;">
+        <h2 style="margin-bottom: 1.5rem; text-align: center;">Course Registration</h2>
+        <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem;">
+            Select a subject to add it to your progress tracker.
+        </p>
+        
+        <form method="POST">
+            <div class="form-group">
+                <label class="form-label" for="subject">Track by Department</label>
+                <select name="subject" id="subject" class="form-control" style="appearance: none;">
+                    <option value="" disabled selected>Choose a department...</option>
+                    {% for subject in subjects %}
+                    <option value="{{ subject }}">{{ subject }}</option>
+                    {% endfor %}
+                </select>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">Tracks all documents within this department.</p>
+            </div>
+            
+            <div style="text-align: center; margin: 1.5rem 0; color: var(--text-muted); font-weight: 600;">— OR —</div>
+            
+            <div class="form-group">
+                <label class="form-label" for="doc_subject">Track Specific Document</label>
+                <select name="subject" id="doc_subject" class="form-control" style="appearance: none;">
+                    <option value="" disabled selected>Choose a specific PDF...</option>
+                    {% for doc in documents %}
+                    <option value="{{ doc.title }}">{{ doc.title }} ({{ doc.department }})</option>
+                    {% endfor %}
+                </select>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">Focus your tracking on a single high-priority file.</p>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem; margin-top: 1.5rem;">Start Tracking</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

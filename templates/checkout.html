@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="glass-panel" style="max-width: 600px; margin: 4rem auto; padding: 3rem; text-align: center; animation: fadeInUp 0.8s ease-out;">
+        <div style="background: rgba(59, 130, 246, 0.1); width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
+            <i data-feather="home" style="width: 40px; height: 40px; color: var(--accent-blue);"></i>
+        </div>
+        
+        <h2 style="font-size: 2.5rem; margin-bottom: 1rem; font-family: 'Outfit', sans-serif;">Manual Bank Transfer</h2>
+        <p style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 2.5rem;">
+            Please transfer the subscription fee to the account below and click "Notify Admin" for manual verification.
+        </p>
+
+        <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%); padding: 2rem; border-radius: var(--radius-xl); border: 1px solid rgba(59, 130, 246, 0.3); margin-bottom: 2.5rem; text-align: left; position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -10px; right: -10px; opacity: 0.1;">
+                <i data-feather="credit-card" style="width: 120px; height: 120px;"></i>
+            </div>
+            
+            <div style="margin-bottom: 1.5rem;">
+                <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.25rem;">Bank Name</div>
+                <div style="font-size: 1.25rem; font-weight: 600; color: white;">OPAY (Digital Bank)</div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.25rem;">Account Number</div>
+                <div style="font-size: 2rem; font-weight: 800; color: var(--accent-cyan); font-family: 'Outfit', sans-serif; letter-spacing: 1px;">9132921718</div>
+            </div>
+
+            <div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.25rem;">Amount to Pay</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: white;">₦1,000</div>
+            </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+            <a href="https://wa.me/2349132921718?text=Hello%20Admin,%20I%20just%20made%20a%20payment%20for%20VUI%20Academia%20Premium.%20My%20Name:%20{{ current_user.full_name }}" 
+               class="btn btn-primary" style="background: #25D366; border: none; padding: 1.2rem; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.1rem;">
+                <i data-feather="message-circle" style="width: 20px; height: 20px;"></i>
+                Notify Admin via WhatsApp
+            </a>
+            
+            <form method="POST" action="{{ url_for('verify_payment') }}">
+                <button type="submit" class="btn btn-outline" style="width: 100%; padding: 1rem; opacity: 0.7;">
+                    I have made the transfer
+                </button>
+            </form>
+        </div>
+        
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2rem; line-height: 1.6;">
+            <i data-feather="info" style="width: 14px; height: 14px; margin-right: 4px; vertical-align: middle;"></i>
+            Manual verification typically takes 15-60 minutes. Your access will be granted immediately after confirmation.
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+<style>
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>

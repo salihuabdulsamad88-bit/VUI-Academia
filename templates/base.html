@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VUI Academia - Elite Academic Resources</title>
+    <meta name="description" content="Access top-tier academic PDFs across various departments.">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-cover">
+            <a href="{{ url_for('index') }}" class="brand">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="VUI Logo">
+                <span class="brand-text">VUI ACADEMIA<span class="brand-dot">.</span></span>
+            </a>
+            
+            <div class="header-actions">
+                {% if current_user.is_authenticated %}
+                    <button onclick="document.getElementById('notif-modal').style.display='flex'" class="icon-btn" style="position: relative;">
+                        <i data-feather="bell" style="width: 20px; height: 20px;"></i>
+                        {% set unread_count = current_user.notifications|rejectattr('is_read')|list|length %}
+                        {% if unread_count > 0 %}
+                        <span style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; font-size: 0.6rem; padding: 1px 4px; border-radius: 50%; font-weight: 800; border: 1px solid #0f172a;">{{ unread_count }}</span>
+                        {% endif %}
+                    </button>
+                    <a href="{{ url_for('dashboard') }}" class="header-link" style="margin-right: 1rem;"><i data-feather="grid" style="width: 16px; height: 16px; margin-right: 0.3rem;"></i> Library</a>
+                    <span class="header-link">HI, {{ current_user.full_name.split()[0] | upper }}</span>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="header-link" style="color: #06b6d4;">Login</a>
+                    <a href="{{ url_for('register') }}" class="header-link" style="color: #06b6d4;">Register</a>
+                {% endif %}
+                
+                <button id="theme-toggle" class="icon-btn" aria-label="Toggle Theme">
+                    <i data-feather="moon" id="theme-icon" style="width: 20px; height: 20px;"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flash-messages">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <div class="app-container">
+        {% if current_user.is_authenticated %}
+        <aside class="global-sidebar slide-in-left">
+            <div class="sidebar-nav">
+                <li><a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}"><i data-feather="grid"></i> Document Library</a></li>
+                <li><a href="{{ url_for('ai_generator') }}" class="{% if request.endpoint == 'ai_generator' %}active{% endif %}"><i data-feather="cpu"></i> AI Flashcard Maker</a></li>
+                <li><a href="{{ url_for('study_hub') }}" class="{% if request.endpoint == 'study_hub' %}active{% endif %}"><i data-feather="zap"></i> Study Hub</a></li>
+                <li><a href="{{ url_for('progress_tracker') }}" class="{% if request.endpoint == 'progress_tracker' %}active{% endif %}"><i data-feather="activity"></i> Progress Tracker</a></li>
+                <li><a href="{{ url_for('lectures') }}" class="{% if request.endpoint == 'lectures' %}active{% endif %}"><i data-feather="monitor"></i> Online Lectures</a></li>
+                <li><a href="{{ url_for('timetable') }}" class="{% if request.endpoint == 'timetable' %}active{% endif %}"><i data-feather="calendar"></i> Study Timetable</a></li>
+                <li><a href="{{ url_for('profile') }}" class="{% if request.endpoint == 'profile' %}active{% endif %}"><i data-feather="user"></i> My Account</a></li>
+                <li><a href="{{ url_for('bookmarks_view') }}" class="{% if request.endpoint == 'bookmarks_view' %}active{% endif %}"><i data-feather="bookmark"></i> Bookmarks</a></li>
+                <li><a href="{{ url_for('recent_history') }}" class="{% if request.endpoint == 'recent_history' %}active{% endif %}"><i data-feather="clock"></i> Recent Files</a></li>
+                {% if current_user.is_admin or current_user.role == 'lecturer' %}
+                <li><a href="{{ url_for('admin') }}" class="{% if request.endpoint == 'admin' %}active{% endif %}">
+                    <i data-feather="settings"></i> Admin Panel
+                </a></li>
+                {% endif %}
+                {% if current_user.subscription_status != 'active' and not current_user.is_admin %}
+                <li><a href="{{ url_for('checkout') }}" style="color: var(--accent-cyan);">
+                    <i data-feather="star"></i> Upgrade
+                </a></li>
+                {% endif %}
+                <li><a href="{{ url_for('app_rating_page') }}" class="{% if request.endpoint == 'app_rating_page' %}active{% endif %}" style="color: #fbbf24;">
+                    <i data-feather="star"></i> Rate Our App
+                </a></li>
+            </div>
+        </aside>
+        {% endif %}
+
+        <main class="main-content fade-in">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Floating WhatsApp Button -->
+    <a href="https://wa.me/2349132921718" class="whatsapp-float" target="_blank" title="Chat with Admin">
+        <i data-feather="message-circle"></i>
+    </a>
+
+
+
+    <!-- Notification Modal -->
+    <div id="notif-modal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 3000; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+        <div class="glass-panel" style="width: 100%; max-width: 500px; padding: 2rem; max-height: 80vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h3 style="margin: 0;">Notifications</h3>
+                <button onclick="document.getElementById('notif-modal').style.display='none'" class="btn btn-outline" style="border: none;">X</button>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                {% set all_notifs = current_user.notifications|sort(attribute='created_at', reverse=True) %}
+                {% for n in all_notifs %}
+                <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--accent-cyan);">
+                    <h4 style="margin-bottom: 0.5rem;">{{ n.title }}</h4>
+                    <p style="font-size: 0.9rem; line-height: 1.5; color: var(--text-main);">{{ n.message }}</p>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 1rem;">{{ n.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                </div>
+                {% else %}
+                <p style="text-align: center; color: var(--text-muted); padding: 3rem 0;">No new notifications.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            themeIcon.setAttribute('data-feather', isLight ? 'sun' : 'moon');
+            feather.replace();
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+        });
+
+        if (localStorage.getItem('theme') === 'light') {
+            document.body.classList.add('light-mode');
+            themeIcon.setAttribute('data-feather', 'sun');
+        }
+
+        feather.replace();
+        
+        // Auto-hide alerts
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                alert.style.opacity = '0';
+                setTimeout(() => alert.remove(), 500);
+            });
+        }, 5000);
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+                    .then(registration => console.log('ServiceWorker registered'))
+                    .catch(error => console.log('ServiceWorker registration failed:', error));
+            });
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+    <style>
+        .app-reviews-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .app-reviews-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+        #pwa-install-banner {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(150%);
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--accent-cyan);
+            padding: 1rem 1.5rem;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            z-index: 9999;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: max-content;
+            max-width: 90vw;
+        }
+        #pwa-install-banner.show {
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+
+    <div id="pwa-install-banner">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="background: var(--accent-cyan); padding: 8px; border-radius: 10px;">
+                <i data-feather="download" style="width: 18px; height: 18px; color: white;"></i>
+            </div>
+            <div>
+                <div style="font-weight: 700; font-size: 0.9rem; color: white;">Install VUI Academia</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Get a better experience on your device</div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button id="pwa-cancel" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; font-weight: 600;">Later</button>
+            <button id="pwa-install-btn" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.8rem;">Install</button>
+        </div>
+    </div>
+
+    <script>
+        let deferredPrompt;
+        const installBanner = document.getElementById('pwa-install-banner');
+        const installBtn = document.getElementById('pwa-install-btn');
+        const cancelBtn = document.getElementById('pwa-cancel');
+
+        // Capture the official prompt if available
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+        });
+
+        // SHOW BANNER REGARDLESS after 2 seconds
+        setTimeout(() => {
+            // Only show if not already in standalone mode
+            if (!window.matchMedia('(display-mode: standalone)').matches) {
+                installBanner.classList.add('show');
+                feather.replace();
+            }
+        }, 2000);
+
+        installBtn.addEventListener('click', (e) => {
+            if (deferredPrompt) {
+                installBanner.classList.remove('show');
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    deferredPrompt = null;
+                });
+            } else {
+                // Manual Instructions for iOS or browsers that don't support the prompt
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                if (isIOS) {
+                    alert("To install: Tap the 'Share' icon (bottom center) and select 'Add to Home Screen' from the menu.");
+                } else {
+                    alert("To install: Open your browser menu (three dots) and select 'Install App' or 'Add to Home screen'.");
+                }
+                installBanner.classList.remove('show');
+            }
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            installBanner.classList.remove('show');
+        });
+
+        window.addEventListener('appinstalled', (evt) => {
+            installBanner.classList.remove('show');
+        });
+    </script>
+</body>
+</html>

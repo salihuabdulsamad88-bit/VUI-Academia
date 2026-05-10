@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container scale-up">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h2>Recent History</h2>
+    </div>
+
+    {% if recent_views %}
+    <div class="document-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
+        {% for rv in recent_views %}
+            {% set doc = rv.document %}
+            <div class="document-card glass-panel" style="padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <h3 style="margin-bottom: 0.5rem;">{{ doc.title }}</h3>
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; font-size: 0.85rem;">
+                        <span class="doc-badge">{{ doc.department }}</span>
+                        <span style="color: var(--text-muted);">{{ doc.level }}L</span>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+                        Viewed: {{ rv.viewed_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <a href="{{ url_for('view_document', doc_id=doc.id) }}" class="btn btn-primary" style="flex: 1; text-align: center; padding: 0.5rem;">Read Again</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="glass-panel" style="padding: 3rem; text-align: center; border-radius: var(--radius-lg);">
+        <i data-feather="clock" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 1rem;"></i>
+        <h3 style="color: var(--text-muted);">No Recent History</h3>
+        <p style="color: var(--text-muted); margin-top: 0.5rem;">PDFs you open will appear here.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

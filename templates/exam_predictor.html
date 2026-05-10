@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .predictor-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: rgba(251, 191, 36, 0.1);
+        color: #fbbf24;
+        border-radius: 99px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 2rem;
+        border: 1px solid rgba(251, 191, 36, 0.2);
+    }
+
+    .prediction-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .prediction-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--accent-cyan);
+    }
+
+    .confidence-meter {
+        height: 8px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 4px;
+        margin-top: 1rem;
+        overflow: hidden;
+    }
+
+    .confidence-fill {
+        height: 100%;
+        background: linear-gradient(to right, var(--accent-cyan), var(--accent-blue));
+        border-radius: 4px;
+    }
+
+    .hint-box {
+        margin-top: 1.5rem;
+        padding: 1rem;
+        background: rgba(6, 182, 212, 0.05);
+        border-radius: 12px;
+        border: 1px dashed rgba(6, 182, 212, 0.3);
+        color: #94a3b8;
+        font-size: 0.9rem;
+    }
+
+    .forecast-header {
+        text-align: center;
+        margin-bottom: 4rem;
+    }
+</style>
+
+<div class="predictor-container fade-in">
+    <div class="forecast-header">
+        <div class="status-badge">
+            <i data-feather="shield"></i> Secure AI Analysis Active
+        </div>
+        <h2 style="font-size: 3.5rem; margin-bottom: 1rem; background: linear-gradient(to right, #6ee7b7, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Exam Forecast</h2>
+        <p style="color: var(--text-muted); font-size: 1.2rem;">Predicting the most likely questions for: <strong style="color: white;">{{ document.title }}</strong></p>
+    </div>
+
+    {% if predictions %}
+        {% for pred in predictions %}
+        <div class="prediction-card">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                <span style="color: var(--accent-cyan); font-weight: bold; font-size: 0.8rem; text-transform: uppercase;">Predicted Question #{{ loop.index }}</span>
+                <span style="color: #fbbf24; font-size: 0.8rem; font-weight: bold;">{{ pred.confidence }}% Confidence</span>
+            </div>
+            
+            <h3 style="font-size: 1.4rem; line-height: 1.4; margin-bottom: 1rem;">{{ pred.question }}</h3>
+            
+            <div class="confidence-meter">
+                <div class="confidence-fill" style="width: {{ pred.confidence }}%;"></div>
+            </div>
+
+            <div class="hint-box">
+                <strong style="color: var(--accent-cyan);"><i data-feather="info" style="width: 14px; margin-right: 4px;"></i> Expert Study Hint:</strong><br>
+                <p style="margin-top: 0.5rem;">{{ pred.hint }}</p>
+            </div>
+        </div>
+        {% endfor %}
+        
+        <div style="text-align: center; margin-top: 4rem;">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline"><i data-feather="arrow-left"></i> Back to Hub</a>
+        </div>
+    {% else %}
+        <div class="glass-panel" style="text-align: center; padding: 5rem 2rem;">
+            <i data-feather="cpu" style="width: 64px; height: 64px; color: var(--accent-cyan); margin-bottom: 2rem;"></i>
+            <h3>Ready to analyze this document?</h3>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">Our AI will process the core concepts and predict your next exam paper.</p>
+            
+            <form method="POST">
+                <button type="submit" class="btn btn-primary" style="padding: 1.25rem 3rem; font-size: 1.1rem; border-radius: 99px;">
+                    <i data-feather="zap" style="margin-right: 0.5rem;"></i> Generate Forecast Now
+                </button>
+            </form>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        feather.replace();
+    });
+</script>
+{% endblock %}

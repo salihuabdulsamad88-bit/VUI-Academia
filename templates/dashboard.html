@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+
+    {% if trial_remaining %}
+    <div class="trial-banner">
+        <div>
+            <h3 style="margin-bottom: 0.25rem;">Free Trial Active</h3>
+            <p style="margin: 0; color: rgba(255,255,255,0.8);">Your trial expires in {{ trial_remaining.seconds // 3600 }} hours and {{ (trial_remaining.seconds // 60) % 60 }} minutes.</p>
+        </div>
+        <a href="{{ url_for('checkout') }}" class="btn btn-primary">Upgrade Now</a>
+    </div>
+    {% endif %}
+
+    <div class="dashboard-layout">
+        <!-- Sidebar Filters -->
+        <aside class="glass-panel filters-panel">
+            <form method="GET" action="{{ url_for('dashboard') }}" style="margin-bottom: 1.5rem;">
+                <input type="text" name="q" placeholder="Search PDFs..." class="form-control" value="{{ request.args.get('q', '') }}">
+            </form>
+
+            <div class="filter-group">
+                <h3>Department</h3>
+                <ul class="filter-list">
+                    <li><a href="{{ url_for('dashboard', department='all', level=request.args.get('level', 'all')) }}" class="{% if request.args.get('department', 'all') == 'all' %}active{% endif %}">All Departments</a></li>
+                    {% for dept in all_departments %}
+                    <li><a href="{{ url_for('dashboard', department=dept, level=request.args.get('level', 'all')) }}" class="{% if request.args.get('department') == dept %}active{% endif %}">{{ dept }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            
+            <div class="filter-group">
+                <h3>Level</h3>
+                <ul class="filter-list">
+                    <li><a href="{{ url_for('dashboard', department=request.args.get('department', 'all'), level='all') }}" class="{% if request.args.get('level', 'all') == 'all' %}active{% endif %}">All Levels</a></li>
+                    <li><a href="{{ url_for('dashboard', department=request.args.get('department', 'all'), level='100') }}" class="{% if request.args.get('level') == '100' %}active{% endif %}">100 Level</a></li>
+                    <li><a href="{{ url_for('dashboard', department=request.args.get('department', 'all'), level='200') }}" class="{% if request.args.get('level') == '200' %}active{% endif %}">200 Level</a></li>
+                    <li><a href="{{ url_for('dashboard', department=request.args.get('department', 'all'), level='300') }}" class="{% if request.args.get('level') == '300' %}active{% endif %}">300 Level</a></li>
+                </ul>
+            </div>
+
+            <!-- Study Tips & Motivation -->
+            <div class="filter-group" style="margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
+                <h3 style="color: var(--accent-cyan); display: flex; align-items: center; gap: 0.5rem;">
+                    <i data-feather="sun" style="width: 18px;"></i> Daily Motivation
+                </h3>
+                <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; font-style: italic; font-size: 0.85rem; color: #cbd5e1; border-left: 2px solid var(--accent-cyan); margin-bottom: 1.5rem;">
+                    "{{ daily_quote.text }}" — {{ daily_quote.author }}
+                </div>
+
+                <h3 style="color: #fbbf24; display: flex; align-items: center; gap: 0.5rem;">
+                    <i data-feather="star" style="width: 18px;"></i> Top Study Tips
+                </h3>
+                <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem;">
+                    <li style="display: flex; gap: 0.75rem; font-size: 0.85rem; color: var(--text-muted);">
+                        <span style="color: #fbbf24;">•</span> The Pomodoro Technique: Study for 25 mins, break for 5 mins.
+                    </li>
+                    <li style="display: flex; gap: 0.75rem; font-size: 0.85rem; color: var(--text-muted);">
+                        <span style="color: #fbbf24;">•</span> Active Recall: Test yourself immediately after reading a section.
+                    </li>
+                    <li style="display: flex; gap: 0.75rem; font-size: 0.85rem; color: var(--text-muted);">
+                        <span style="color: #fbbf24;">•</span> Spaced Repetition: Review your flashcards at increasing intervals.
+                    </li>
+                    <li style="display: flex; gap: 0.75rem; font-size: 0.85rem; color: var(--text-muted);">
+                        <span style="color: #fbbf24;">•</span> Teach Someone Else: Explaining a concept is the best way to master it.
+                    </li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Main Content Grid -->
+        <main>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Document Library</h2>
+                <span style="color: var(--text-muted);">{{ documents|length }} items</span>
+            </div>
+            
+            {% if documents %}
+            <div class="doc-grid">
+                {% for doc in documents %}
+                <div class="glass-panel doc-card">
+                    <span class="doc-badge">{{ doc.department }}</span>
+                    <h3 class="doc-title">{{ doc.title }}</h3>
+                    <div class="doc-meta">
+                        <span><i data-feather="layers" style="width: 14px; height: 14px;"></i> {{ doc.level }} Level</span>
+                        <span style="margin-left: 1rem;"><i data-feather="calendar" style="width: 14px; height: 14px;"></i> {{ doc.upload_date.strftime('%b %d, %Y') }}</span>
+                    </div>
+                    <div class="doc-actions" style="flex-wrap: wrap; gap: 0.5rem;">
+                        {% if current_user.is_trial_expired and not current_user.is_admin %}
+                        <a href="{{ url_for('checkout') }}" class="btn btn-outline" style="width: 100%; border-color: #fca5a5; color: #fca5a5;">
+                            <i data-feather="lock" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i> Trial Expired - Upgrade
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('view_document', doc_id=doc.id) }}" class="btn-read">Read PDF</a>
+                        <form method="POST" action="{{ url_for('generate_materials', doc_id=doc.id) }}" style="display: inline;">
+                            <button type="submit" class="btn-read" style="padding: 0.6rem 1rem; font-size: 0.9rem;" title="Auto-Generate Study Materials">
+                                <i data-feather="zap" style="width: 16px; height: 16px; margin-right: 0.3rem; color: #fbbf24;"></i> Generate
+                            </button>
+                        </form>
+                        <button class="bookmark-btn {% if doc.id in bookmarks %}active{% endif %}" data-doc-id="{{ doc.id }}" aria-label="Bookmark">
+                            <i data-feather="bookmark"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="glass-panel" style="margin-top: 2rem; padding: 4rem 2rem; text-align: center;">
+                <i data-feather="inbox" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                <h3 style="color: var(--text-muted);">No documents found</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Try adjusting your search or filters.</p>
+            </div>
+            {% endif %}
+        </main>
+    </div>
+</div>
+{% endblock %}

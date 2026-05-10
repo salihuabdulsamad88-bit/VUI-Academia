@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="glass-panel auth-container">
+        <h2 class="auth-title">Create Account</h2>
+        <p style="text-align: center; margin-bottom: 2rem; color: var(--text-muted);">Start your 1-day free trial today.</p>
+        <form method="POST" action="{{ url_for('register') }}">
+            <div class="form-group">
+                <label class="form-label" for="full_name">First & Last Name</label>
+                <input type="text" id="full_name" name="full_name" class="form-control" required autocomplete="name">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="matric_number">Matric Number</label>
+                <input type="text" id="matric_number" name="matric_number" class="form-control" required autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="email">Email Address</label>
+                <input type="email" id="email" name="email" class="form-control" required autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="department">Department</label>
+                <select id="department" name="department" class="form-control" required style="appearance: none;">
+                    <option value="" disabled selected>Select your department</option>
+                    <option value="Nursing">Nursing</option>
+                    <option value="Physiotherapy">Physiotherapy</option>
+                    <option value="Cyber Security">Cyber Security</option>
+                    <option value="Software Engineering">Software Engineering</option>
+                    <option value="Medical Laboratory Science">Medical Laboratory Science</option>
+                    <option value="Medicine and Surgery">Medicine and Surgery</option>
+                    <option value="General Studies">General Studies</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <input type="password" id="password" name="password" class="form-control" required autocomplete="new-password">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Security Question (for password recovery)</label>
+                <select name="security_question" class="form-control" required style="appearance: none;">
+                    <option value="What is your mother's maiden name?">What is your mother's maiden name?</option>
+                    <option value="What was the name of your first pet?">What was the name of your first pet?</option>
+                    <option value="What city were you born in?">What city were you born in?</option>
+                    <option value="What is your favorite book?">What is your favorite book?</option>
+                    <option value="What is your childhood nickname?">What is your childhood nickname?</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Security Answer</label>
+                <input type="text" name="security_answer" class="form-control" placeholder="Your answer" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Create Account</button>
+        </form>
+        <p style="text-align: center; margin-top: 1.5rem; color: var(--text-muted);">
+            Already have an account? <a href="{{ url_for('login') }}">Sign In</a>
+        </p>
+    </div>
+</div>
+{% endblock %}
