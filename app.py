@@ -50,27 +50,34 @@ else:
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'vui_academia_super_secret_key_2026')
 
-# Handle database URL for production (PostgreSQL) vs development (SQLite)
-database_url = os.environ.get('DATABASE_URL')
-if database_url:
-    # Ensure URL starts with postgresql://
-    if database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql://', 1)
-    
-    # Force SSL for Supabase if not specified
-    if "sslmode" not in database_url:
-        if "?" in database_url:
-            database_url += "&sslmode=require"
-        else:
-            database_url += "?sslmode=require"
-            
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///vui_academia.db'
+# --- DATABASE CONFIGURATION ---
+db_url = os.environ.get('DATABASE_URL')
+if not db_url:
+    db_url = 'sqlite:///vui_academia.db'
+elif db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
 
+# Force SSL for Supabase if not specified
+if "postgresql" in db_url and "sslmode" not in db_url:
+    db_url += ("&" if "?" in db_url else "?") + "sslmode=require"
+
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
-app.config['AVATAR_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'img', 'avatars')
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 300,
+}
+
+# --- FOLDER & LIMIT CONFIGURATION ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Vercel requires /tmp for writable filesystem
+if os.environ.get('VERCEL'):
+    app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
+    app.config['AVATAR_FOLDER'] = '/tmp/avatars'
+else:
+    app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'uploads')
+    app.config['AVATAR_FOLDER'] = os.path.join(BASE_DIR, 'static', 'img', 'avatars')
+
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB max limit
 
 # Flask-Mail Configuration
@@ -90,13 +97,12 @@ login_manager = LoginManager()
 login_manager.login_view = 'login'
 login_manager.init_app(app)
 
-# Ensure database tables are created automatically on startup
-try:
-    with app.app_context():
+# Safe database initialization for Vercel
+with app.app_context():
+    try:
         db.create_all()
-        print("Database tables verified/created.")
-except Exception as e:
-    print(f"Database initialization warning (will retry on request): {e}")
+    except Exception as e:
+        print(f"Database initialization warning (will retry on request): {e}")
 
 @login_manager.user_loader
 def load_user(user_id):
